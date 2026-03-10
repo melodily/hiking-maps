@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Julian Alps — Hiking Trails</title>
+<title>Milford Track — Hiking Trails</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
@@ -88,44 +88,13 @@
     min-width: 210px;
   }
 
-  #legend-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    user-select: none;
-  }
-
   #legend h3 {
     font-family: 'Playfair Display', serif;
     font-size: 0.8rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--mist);
-    margin-bottom: 0;
-  }
-
-  #legend-toggle {
-    color: var(--stone);
-    font-size: 0.7rem;
-    transition: transform 0.2s;
-    line-height: 1;
-  }
-
-  #legend.collapsed #legend-toggle { transform: rotate(180deg); }
-
-  #legend-body {
-    margin-top: 10px;
-    overflow: hidden;
-    transition: max-height 0.25s ease, opacity 0.2s ease;
-    max-height: 400px;
-    opacity: 1;
-  }
-
-  #legend.collapsed #legend-body {
-    max-height: 0;
-    opacity: 0;
-    margin-top: 0;
+    margin-bottom: 10px;
   }
 
   .legend-row {
@@ -366,10 +335,6 @@
     transition: background 0.15s, border-color 0.15s;
     letter-spacing: 0.04em;
   }
-  .ctrl-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
   .ctrl-btn:hover {
     background: rgba(50,50,46,0.95);
     border-color: rgba(255,255,255,0.2);
@@ -396,35 +361,13 @@
     display: none;
   }
   #stats span { color: var(--paper); font-weight: 500; }
-
-  /* Locate pulse */
-  @keyframes pulse {
-    0%   { transform: scale(1);   opacity: 1; }
-    70%  { transform: scale(2.8); opacity: 0; }
-    100% { transform: scale(1);   opacity: 0; }
-  }
-  .locate-pulse {
-    width: 14px; height: 14px;
-    background: #4a9eff;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-  }
-  .locate-ring {
-    position: absolute;
-    top: 0; left: 0;
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: #4a9eff55;
-    animation: pulse 1.8s ease-out infinite;
-  }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Julian Alps</h1>
-  <span class="sub">Hiking Trails · Difficulty Map</span>
+  <h1>Milford Track</h1>
+  <span class="sub">Hiking Trails · Fiordland, NZ</span>
   <div id="hut-search-wrapper">
     <input type="text" id="hut-search" placeholder="Search huts…" autocomplete="off" spellcheck="false">
     <span id="search-icon">⌕</span>
@@ -442,72 +385,45 @@
   </div>
 
   <div id="legend">
-    <div id="legend-header" onclick="toggleLegend()">
-      <h3>Difficulty (SAC Scale)</h3>
-      <span id="legend-toggle">▲</span>
+    <h3>Difficulty (SAC Scale)</h3>
+    <div class="legend-row" data-key="T1" onclick="toggleDifficulty('T1',this)">
+      <div class="legend-swatch" style="background:var(--t1)"></div>
+      <div class="legend-label">T1 — Hiking<small>Well-marked paths, no special gear</small></div>
     </div>
-    <div id="legend-body">
-      <div class="legend-row" data-key="T1" onclick="toggleDifficulty('T1',this)">
-        <div class="legend-swatch" style="background:var(--t1)"></div>
-        <div class="legend-label">T1 — Hiking<small>Well-marked paths, no special gear</small></div>
-      </div>
-      <div class="legend-row" data-key="T2" onclick="toggleDifficulty('T2',this)">
-        <div class="legend-swatch" style="background:var(--t2)"></div>
-        <div class="legend-label">T2 — Mountain Hiking<small>Some exposed terrain, surefootedness needed</small></div>
-      </div>
-      <div class="legend-row" data-key="T3" onclick="toggleDifficulty('T3',this)">
-        <div class="legend-swatch" style="background:var(--t3)"></div>
-        <div class="legend-label">T3 — Demanding Mountain<small>Hands occasionally needed, good footwear</small></div>
-      </div>
-      <div class="legend-row" data-key="T4" onclick="toggleDifficulty('T4',this)">
-        <div class="legend-swatch" style="background:var(--t4)"></div>
-        <div class="legend-label">T4 — Alpine Hiking<small>Some climbing, experience required</small></div>
-      </div>
-      <div class="legend-row" data-key="T5" onclick="toggleDifficulty('T5',this)">
-        <div class="legend-swatch" style="background:var(--t5)"></div>
-        <div class="legend-label">T5 — Demanding Alpine<small>Advanced mountaineering skills</small></div>
-      </div>
-      <div class="legend-row" data-key="T6" onclick="toggleDifficulty('T6',this)">
-        <div class="legend-swatch" style="background:var(--t6)"></div>
-        <div class="legend-label">T6 — Difficult Alpine<small>Highest difficulty, technical climbing</small></div>
-      </div>
-      <div class="legend-row" data-key="unknown" onclick="toggleDifficulty('unknown',this)">
-        <div class="legend-swatch" style="background:var(--unknown)"></div>
-        <div class="legend-label">Unknown difficulty</div>
-      </div>
-      <hr class="legend-divider">
-      <div class="legend-row" style="cursor:default">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="18" viewBox="0 0 22 20" style="flex-shrink:0">
-          <polygon points="11,1 21,9 1,9" fill="#1a3d6b" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-          <rect x="3" y="9" width="16" height="10" rx="1" fill="#1a3d6b" stroke="white" stroke-width="1.5"/>
-          <rect x="9" y="13" width="4" height="6" fill="white" rx="0.5"/>
-        </svg>
-        <div class="legend-label">Mountain Hut / Shelter</div>
-      </div>
-      <div class="legend-row" style="cursor:default">
-        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="17" viewBox="0 0 16 20" style="flex-shrink:0">
-          <path d="M8 1C8 1 1 9 1 14a7 7 0 0 0 14 0C15 9 8 1 8 1z" fill="#2980b9" stroke="white" stroke-width="1.5"/>
-        </svg>
-        <div class="legend-label">Natural Spring</div>
-      </div>
-      <div class="legend-row" style="cursor:default">
-        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="16" viewBox="0 0 16 18" style="flex-shrink:0">
-          <path d="M2 4h12l-2 12H4L2 4z" fill="#16a085" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-          <line x1="2" y1="4" x2="14" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M5 8 Q8 6.5 11 8" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-          <path d="M5 11 Q8 9.5 11 11" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-        </svg>
-        <div class="legend-label">Drinking Water</div>
-      </div>
+    <div class="legend-row" data-key="T2" onclick="toggleDifficulty('T2',this)">
+      <div class="legend-swatch" style="background:var(--t2)"></div>
+      <div class="legend-label">T2 — Mountain Hiking<small>Some exposed terrain, surefootedness needed</small></div>
+    </div>
+    <div class="legend-row" data-key="T3" onclick="toggleDifficulty('T3',this)">
+      <div class="legend-swatch" style="background:var(--t3)"></div>
+      <div class="legend-label">T3 — Demanding Mountain<small>Hands occasionally needed, good footwear</small></div>
+    </div>
+    <div class="legend-row" data-key="T4" onclick="toggleDifficulty('T4',this)">
+      <div class="legend-swatch" style="background:var(--t4)"></div>
+      <div class="legend-label">T4 — Alpine Hiking<small>Some climbing, experience required</small></div>
+    </div>
+    <div class="legend-row" data-key="T5" onclick="toggleDifficulty('T5',this)">
+      <div class="legend-swatch" style="background:var(--t5)"></div>
+      <div class="legend-label">T5 — Demanding Alpine<small>Advanced mountaineering skills</small></div>
+    </div>
+    <div class="legend-row" data-key="T6" onclick="toggleDifficulty('T6',this)">
+      <div class="legend-swatch" style="background:var(--t6)"></div>
+      <div class="legend-label">T6 — Difficult Alpine<small>Highest difficulty, technical climbing</small></div>
+    </div>
+    <div class="legend-row" data-key="unknown" onclick="toggleDifficulty('unknown',this)">
+      <div class="legend-swatch" style="background:var(--unknown)"></div>
+      <div class="legend-label">Unknown difficulty</div>
+    </div>
+    <hr class="legend-divider">
+    <div class="legend-row" style="cursor:default">
+      <div class="hut-icon-legend"></div>
+      <div class="legend-label">Hut / Shelter</div>
     </div>
   </div>
 
   <div id="controls">
     <button class="ctrl-btn active" id="btn-trails" onclick="toggleLayer('trails',this)">Trails</button>
     <button class="ctrl-btn active" id="btn-huts" onclick="toggleLayer('huts',this)">Huts</button>
-    <button class="ctrl-btn active" id="btn-water" onclick="toggleLayer('water',this)">Water</button>
-    <button class="ctrl-btn" id="btn-locate" onclick="toggleLocate(this)">Locate me</button>
-    <button class="ctrl-btn" id="btn-gpx" onclick="downloadGPX()" disabled>Download GPX</button>
   </div>
 
   <div id="stats"></div>
@@ -516,7 +432,7 @@
 <script>
 // ── Map setup ──────────────────────────────────────────────────────────────
 const map = L.map('map', {
-  center: [46.38, 13.75],
+  center: [-44.87, 168.05],
   zoom: 11,
   zoomControl: true,
   preferCanvas: true
@@ -545,59 +461,33 @@ function getDifficulty(sacScale) {
 
 // ── Layer groups ───────────────────────────────────────────────────────────
 const trailLayers = {};  // keyed by difficulty key
-const hutLayer   = L.layerGroup().addTo(map);
-const waterLayer = L.layerGroup().addTo(map);
+const hutLayer = L.layerGroup().addTo(map);
 let allTrailGroup = L.layerGroup().addTo(map);
-let layerVisible = { trails: true, huts: true, water: true };
+let layerVisible = { trails: true, huts: true };
 let difficultyVisible = { T1:true, T2:true, T3:true, T4:true, T5:true, T6:true, unknown:true };
 
 // ── Hut search data ────────────────────────────────────────────────────────
-const hutData   = [];   // { name, lat, lon, ele, marker }
-const trailData = [];   // { name, diffLabel, latlngs }
-const waterData = [];   // { name, lat, lon, ele, type }
+const hutData = []; // { name, lat, lon, ele, marker }
 
-// ── Icons ──────────────────────────────────────────────────────────────────
+// ── Hut marker ────────────────────────────────────────────────────────────
 function hutIcon() {
   return L.divIcon({
-    html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="20" viewBox="0 0 22 20">
-      <polygon points="11,1 21,9 1,9" fill="#1a3d6b" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-      <rect x="3" y="9" width="16" height="10" rx="1" fill="#1a3d6b" stroke="white" stroke-width="1.5"/>
-      <rect x="9" y="13" width="4" height="6" fill="white" rx="0.5"/>
-    </svg>`,
+    html: `<div style="
+      width:20px;height:20px;
+      background:#1a3d6b;
+      border:2.5px solid #fff;
+      border-radius:50%;
+      box-shadow:0 2px 6px rgba(0,0,0,0.55)
+    "></div>`,
     className: '',
-    iconSize: [22, 20],
-    iconAnchor: [11, 20]
-  });
-}
-
-function springIcon() {
-  return L.divIcon({
-    html: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 16 20">
-      <path d="M8 1C8 1 1 9 1 14a7 7 0 0 0 14 0C15 9 8 1 8 1z" fill="#2980b9" stroke="white" stroke-width="1.5"/>
-    </svg>`,
-    className: '',
-    iconSize: [16, 20],
-    iconAnchor: [8, 20]
-  });
-}
-
-function drinkingWaterIcon() {
-  return L.divIcon({
-    html: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="18" viewBox="0 0 16 18">
-      <path d="M2 4h12l-2 12H4L2 4z" fill="#16a085" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-      <line x1="2" y1="4" x2="14" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-      <path d="M5 8 Q8 6.5 11 8" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-      <path d="M5 11 Q8 9.5 11 11" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-    </svg>`,
-    className: '',
-    iconSize: [16, 18],
-    iconAnchor: [8, 18]
+    iconSize: [20,20],
+    iconAnchor: [10,10]
   });
 }
 
 // ── Overpass fetch ─────────────────────────────────────────────────────────
-// Bounding box for Julian Alps (wider area)
-const BBOX = '46.0,13.3,46.85,14.25';
+// Bounding box for Milford Track / Fiordland (south,west,north,east)
+const BBOX = '-45.15,167.75,-44.55,168.35';
 
 const QUERY = `
 [out:json][timeout:90][bbox:${BBOX}];
@@ -610,8 +500,6 @@ const QUERY = `
   way["tourism"="alpine_hut"];
   way["tourism"="wilderness_hut"];
   way["tourism"="shelter"];
-  node["natural"="spring"];
-  node["amenity"="drinking_water"];
 );
 out geom tags;
 `.trim();
@@ -629,7 +517,7 @@ async function fetchData() {
 // ── Hut marker helper ─────────────────────────────────────────────────────
 function addHutMarker(tags, lat, lon) {
   const tourism = tags.tourism;
-  const name = tags.name || 'Mountain hut';
+  const name = tags.name || 'Hut';
   const ele = tags.ele ? `${tags.ele} m` : '';
   const capacity = tags.capacity ? `Capacity: ${tags.capacity}` : '';
   const opening = tags.opening_hours || '';
@@ -656,35 +544,9 @@ function addHutMarker(tags, lat, lon) {
   hutData.push({ name, lat, lon, ele: tags.ele || '', marker });
 }
 
-// ── Water marker helper ────────────────────────────────────────────────────
-function addWaterMarker(tags, lat, lon) {
-  const isSpring = tags.natural === 'spring';
-  const name     = tags.name || (isSpring ? 'Spring' : 'Drinking water');
-  const ele      = tags.ele ? `${tags.ele} m` : '';
-  const note     = tags.description || tags.note || '';
-  const safe     = tags.drinking_water;
-  const color    = isSpring ? '#2980b9' : '#16a085';
-  const typeLabel = isSpring ? 'natural spring' : 'drinking water';
-
-  const marker = L.marker([lat, lon], { icon: isSpring ? springIcon() : drinkingWaterIcon() });
-  marker.bindPopup(`
-    <div class="popup-name">${isSpring ? '💧' : '🚰'} ${name}</div>
-    <span class="popup-tag" style="background:${color}22;color:${color};border:1px solid ${color}44">
-      ${typeLabel}
-    </span>
-    <div class="popup-detail">
-      ${ele ? `<b>Elevation:</b> ${ele}<br>` : ''}
-      ${safe ? `<b>Drinking water:</b> ${safe}<br>` : ''}
-      ${note ? `${note}` : ''}
-    </div>
-  `);
-  waterLayer.addLayer(marker);
-  waterData.push({ name, lat, lon, ele: tags.ele || '', type: typeLabel });
-}
-
 // ── Render ─────────────────────────────────────────────────────────────────
 function renderData(data) {
-  let trailCount = 0, hutCount = 0, waterCount = 0;
+  let trailCount = 0, hutCount = 0;
 
   // Group trail polylines by difficulty
   const byDiff = {};
@@ -736,19 +598,12 @@ function renderData(data) {
 
       if (!byDiff[key]) byDiff[key] = [];
       byDiff[key].push(line);
-      trailData.push({ name, diffLabel: diff.label, color: diff.color, latlngs });
       trailCount++;
     }
 
-    if (el.type === 'node' && el.tags) {
-      const t = el.tags;
-      if (t.tourism) {
-        addHutMarker(t, el.lat, el.lon);
-        hutCount++;
-      } else if (t.natural === 'spring' || t.amenity === 'drinking_water') {
-        addWaterMarker(t, el.lat, el.lon);
-        waterCount++;
-      }
+    if (el.type === 'node' && el.tags && el.tags.tourism) {
+      addHutMarker(el.tags, el.lat, el.lon);
+      hutCount++;
     }
   });
 
@@ -764,14 +619,10 @@ function renderData(data) {
   // Update stats
   const statsEl = document.getElementById('stats');
   statsEl.style.display = 'block';
-  statsEl.innerHTML = `<span>${trailCount}</span> trails · <span>${hutCount}</span> huts · <span>${waterCount}</span> water sources`;
+  statsEl.innerHTML = `<span>${trailCount}</span> trail segments · <span>${hutCount}</span> huts`;
 }
 
 // ── Toggle helpers ─────────────────────────────────────────────────────────
-function toggleLegend() {
-  document.getElementById('legend').classList.toggle('collapsed');
-}
-
 function toggleLayer(which, btn) {
   layerVisible[which] = !layerVisible[which];
   btn.classList.toggle('active', layerVisible[which]);
@@ -784,9 +635,6 @@ function toggleLayer(which, btn) {
   } else if (which === 'huts') {
     if (layerVisible.huts) map.addLayer(hutLayer);
     else map.removeLayer(hutLayer);
-  } else if (which === 'water') {
-    if (layerVisible.water) map.addLayer(waterLayer);
-    else map.removeLayer(waterLayer);
   }
 }
 
@@ -894,131 +742,6 @@ function toggleDifficulty(key, row) {
   input.addEventListener('blur', () => setTimeout(closeDropdown, 150));
 })();
 
-// ── GPX export ─────────────────────────────────────────────────────────────
-function downloadGPX() {
-  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-  const GARMIN_COLOR = {
-    '#2ecc71': 'Green', '#a8d850': 'Green', '#f39c12': 'Yellow',
-    '#e67e22': 'DarkYellow', '#e74c3c': 'Red', '#8e1a1a': 'DarkRed', '#999999': 'LightGray',
-  };
-
-  const wpts = [
-    ...hutData.map(h => `  <wpt lat="${h.lat}" lon="${h.lon}">
-    <name>${esc(h.name)}</name>${h.ele ? `\n    <ele>${h.ele}</ele>` : ''}
-    <sym>Residence</sym>
-    <type>hut</type>
-    <extensions>
-      <osmand:color>#1a3d6b</osmand:color>
-      <osmand:icon>tourism_alpine_hut</osmand:icon>
-    </extensions>
-  </wpt>`),
-    ...waterData.map(w => {
-      const isSpring = w.type === 'natural spring';
-      return `  <wpt lat="${w.lat}" lon="${w.lon}">
-    <name>${esc(w.name)}</name>${w.ele ? `\n    <ele>${w.ele}</ele>` : ''}
-    <sym>${isSpring ? 'Water Source' : 'Drinking Water'}</sym>
-    <type>${esc(w.type)}</type>
-    <extensions>
-      <osmand:color>${isSpring ? '#2980b9' : '#16a085'}</osmand:color>
-      <osmand:icon>${isSpring ? 'natural_spring' : 'amenity_drinking_water'}</osmand:icon>
-    </extensions>
-  </wpt>`;
-    })
-  ].join('\n');
-
-  const trks = trailData.map(t => `  <trk>
-    <name>${esc(t.name || 'Trail')}</name>
-    <desc>${esc(t.diffLabel)}</desc>
-    <extensions>
-      <gpxx:TrackExtension>
-        <gpxx:DisplayColor>${GARMIN_COLOR[t.color] || 'DarkGray'}</gpxx:DisplayColor>
-      </gpxx:TrackExtension>
-      <osmand:color>${t.color}</osmand:color>
-    </extensions>
-    <trkseg>
-${t.latlngs.map(([lat, lon]) => `      <trkpt lat="${lat}" lon="${lon}"/>`).join('\n')}
-    </trkseg>
-  </trk>`).join('\n');
-
-  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Julian Alps Hiking Map"
-  xmlns="http://www.topografix.com/GPX/1/1"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3"
-  xmlns:osmand="https://osmand.net"
-  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
-  <metadata><name>Julian Alps Hiking Trails</name></metadata>
-${wpts}
-${trks}
-</gpx>`;
-
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' }));
-  a.download = 'julian-alps.gpx';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-// ── Locate me ──────────────────────────────────────────────────────────────
-let locateWatcher = null;
-let locateMarker = null;
-let locateCircle = null;
-
-function toggleLocate(btn) {
-  if (locateWatcher !== null) {
-    navigator.geolocation.clearWatch(locateWatcher);
-    locateWatcher = null;
-    if (locateMarker) { locateMarker.remove(); locateMarker = null; }
-    if (locateCircle) { locateCircle.remove(); locateCircle = null; }
-    btn.classList.remove('active');
-    btn.textContent = 'Locate me';
-    return;
-  }
-
-  if (!navigator.geolocation) {
-    alert('Geolocation is not supported by your browser.');
-    return;
-  }
-
-  btn.textContent = 'Locating…';
-
-  locateWatcher = navigator.geolocation.watchPosition(pos => {
-    const { latitude: lat, longitude: lon, accuracy } = pos.coords;
-
-    if (!locateMarker) {
-      locateMarker = L.marker([lat, lon], {
-        icon: L.divIcon({
-          html: '<div class="locate-pulse"></div><div class="locate-ring"></div>',
-          className: '',
-          iconSize: [14, 14],
-          iconAnchor: [7, 7]
-        }),
-        zIndexOffset: 1000
-      }).addTo(map);
-      map.flyTo([lat, lon], Math.max(map.getZoom(), 14), { duration: 1 });
-    } else {
-      locateMarker.setLatLng([lat, lon]);
-    }
-
-    if (locateCircle) locateCircle.remove();
-    locateCircle = L.circle([lat, lon], {
-      radius: accuracy,
-      color: '#4a9eff',
-      fillColor: '#4a9eff',
-      fillOpacity: 0.08,
-      weight: 1
-    }).addTo(map);
-
-    btn.classList.add('active');
-    btn.textContent = 'Tracking';
-  }, err => {
-    btn.textContent = 'Locate me';
-    locateWatcher = null;
-    alert(`Location error: ${err.message}`);
-  }, { enableHighAccuracy: true });
-}
-
 // ── Init ───────────────────────────────────────────────────────────────────
 (async () => {
   const statusEl = document.getElementById('status');
@@ -1030,7 +753,6 @@ function toggleLocate(btn) {
     statusEl.textContent = `Processing ${data.elements.length} features…`;
     renderData(data);
     loadingEl.classList.add('hidden');
-    document.getElementById('btn-gpx').disabled = false;
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}. Try refreshing.`;
     console.error(err);
