@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Julian Alps — Hiking Trails</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a18;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --stone: #8a8478;
+    --mist: #c8c4b8;
+    --pine: #2d4a2d;
+
+    --t1: #2ecc71;
+    --t2: #a8d850;
+    --t3: #f39c12;
+    --t4: #e67e22;
+    --t5: #e74c3c;
+    --t6: #8e1a1a;
+    --unknown: #999;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--ink);
+    color: var(--paper);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 14px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    background: var(--ink);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    z-index: 1000;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--paper);
+  }
+
+  header span.sub {
+    font-size: 0.78rem;
+    color: var(--stone);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #map-container {
+    flex: 1;
+    position: relative;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Legend */
+  #legend {
+    position: absolute;
+    bottom: 28px;
+    left: 16px;
+    background: rgba(26,26,24,0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 14px 18px;
+    z-index: 900;
+    min-width: 210px;
+  }
+
+  #legend h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mist);
+    margin-bottom: 10px;
+  }
+
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    padding: 3px 4px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .legend-row:hover { background: rgba(255,255,255,0.06); }
+  .legend-row.muted { opacity: 0.35; }
+
+  .legend-swatch {
+    width: 28px;
+    height: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .legend-label {
+    font-size: 0.78rem;
+    color: var(--paper);
+    line-height: 1.2;
+  }
+
+  .legend-label small {
+    display: block;
+    color: var(--stone);
+    font-size: 0.68rem;
+    margin-top: 1px;
+  }
+
+  .legend-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 8px 0;
+  }
+
+  .hut-icon-legend {
+    width: 14px;
+    height: 14px;
+    background: #f5a623;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    flex-shrink: 0;
+  }
+
+  /* Loading overlay */
+  #loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(26,26,24,0.82);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    gap: 16px;
+    transition: opacity 0.4s;
+  }
+
+  #loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .loader-ring {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: var(--paper);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #loading p {
+    font-size: 0.85rem;
+    color: var(--mist);
+    letter-spacing: 0.06em;
+  }
+
+  #status {
+    font-size: 0.7rem;
+    color: var(--stone);
+    margin-top: 4px;
+  }
+
+  /* Popup styles */
+  .leaflet-popup-content-wrapper {
+    background: rgba(26,26,24,0.97) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 8px !important;
+    color: var(--paper) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  }
+  .leaflet-popup-tip { background: rgba(26,26,24,0.97) !important; }
+  .leaflet-popup-content { margin: 12px 16px !important; }
+
+  .popup-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+    color: var(--paper);
+  }
+
+  .popup-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+
+  .popup-detail {
+    font-size: 0.75rem;
+    color: var(--stone);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  /* Controls */
+  #controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ctrl-btn {
+    background: rgba(26,26,24,0.92);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--paper);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background 0.15s, border-color 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .ctrl-btn:hover {
+    background: rgba(50,50,46,0.95);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .ctrl-btn.active {
+    background: var(--paper);
+    color: var(--ink);
+    border-color: var(--paper);
+  }
+
+  /* Stats bar */
+  #stats {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: rgba(26,26,24,0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 8px 14px;
+    z-index: 900;
+    font-size: 0.72rem;
+    color: var(--stone);
+    display: none;
+  }
+  #stats span { color: var(--paper); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Julian Alps</h1>
+  <span class="sub">Hiking Trails · Difficulty Map</span>
+</header>
+
+<div id="map-container">
+  <div id="map"></div>
+
+  <div id="loading">
+    <div class="loader-ring"></div>
+    <p>Fetching trail data from OpenStreetMap…</p>
+    <div id="status">Querying Overpass API</div>
+  </div>
+
+  <div id="legend">
+    <h3>Difficulty (SAC Scale)</h3>
+    <div class="legend-row" data-key="T1" onclick="toggleDifficulty('T1',this)">
+      <div class="legend-swatch" style="background:var(--t1)"></div>
+      <div class="legend-label">T1 — Hiking<small>Well-marked paths, no special gear</small></div>
+    </div>
+    <div class="legend-row" data-key="T2" onclick="toggleDifficulty('T2',this)">
+      <div class="legend-swatch" style="background:var(--t2)"></div>
+      <div class="legend-label">T2 — Mountain Hiking<small>Some exposed terrain, surefootedness needed</small></div>
+    </div>
+    <div class="legend-row" data-key="T3" onclick="toggleDifficulty('T3',this)">
+      <div class="legend-swatch" style="background:var(--t3)"></div>
+      <div class="legend-label">T3 — Demanding Mountain<small>Hands occasionally needed, good footwear</small></div>
+    </div>
+    <div class="legend-row" data-key="T4" onclick="toggleDifficulty('T4',this)">
+      <div class="legend-swatch" style="background:var(--t4)"></div>
+      <div class="legend-label">T4 — Alpine Hiking<small>Some climbing, experience required</small></div>
+    </div>
+    <div class="legend-row" data-key="T5" onclick="toggleDifficulty('T5',this)">
+      <div class="legend-swatch" style="background:var(--t5)"></div>
+      <div class="legend-label">T5 — Demanding Alpine<small>Advanced mountaineering skills</small></div>
+    </div>
+    <div class="legend-row" data-key="T6" onclick="toggleDifficulty('T6',this)">
+      <div class="legend-swatch" style="background:var(--t6)"></div>
+      <div class="legend-label">T6 — Difficult Alpine<small>Highest difficulty, technical climbing</small></div>
+    </div>
+    <div class="legend-row" data-key="unknown" onclick="toggleDifficulty('unknown',this)">
+      <div class="legend-swatch" style="background:var(--unknown)"></div>
+      <div class="legend-label">Unknown difficulty</div>
+    </div>
+    <hr class="legend-divider">
+    <div class="legend-row" style="cursor:default">
+      <div class="hut-icon-legend"></div>
+      <div class="legend-label">Mountain Hut / Shelter</div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn active" id="btn-trails" onclick="toggleLayer('trails',this)">Trails</button>
+    <button class="ctrl-btn active" id="btn-huts" onclick="toggleLayer('huts',this)">Huts</button>
+  </div>
+
+  <div id="stats"></div>
+</div>
+
+<script>
+// ── Map setup ──────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [46.38, 13.75],
+  zoom: 11,
+  zoomControl: true,
+  preferCanvas: true
+});
+
+// Topographic tile layer (OpenTopoMap)
+L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors, SRTM | Map: © OpenTopoMap (CC-BY-SA)',
+  maxZoom: 17,
+  opacity: 0.85
+}).addTo(map);
+
+// ── Difficulty config ──────────────────────────────────────────────────────
+const DIFFICULTY = {
+  hiking:                    { key:'T1', label:'T1 – Hiking',          color:'#2ecc71', width:2.5 },
+  mountain_hiking:           { key:'T2', label:'T2 – Mountain Hiking', color:'#a8d850', width:2.5 },
+  demanding_mountain_hiking: { key:'T3', label:'T3 – Demanding Mountain', color:'#f39c12', width:3 },
+  alpine_hiking:             { key:'T4', label:'T4 – Alpine Hiking',   color:'#e67e22', width:3 },
+  demanding_alpine_hiking:   { key:'T5', label:'T5 – Demanding Alpine',color:'#e74c3c', width:3.5 },
+  difficult_alpine_hiking:   { key:'T6', label:'T6 – Difficult Alpine',color:'#8e1a1a', width:4 },
+};
+
+function getDifficulty(sacScale) {
+  return DIFFICULTY[sacScale] || { key:'unknown', label:'Unknown', color:'#999999', width:2 };
+}
+
+// ── Layer groups ───────────────────────────────────────────────────────────
+const trailLayers = {};  // keyed by difficulty key
+const hutLayer = L.layerGroup().addTo(map);
+let allTrailGroup = L.layerGroup().addTo(map);
+let layerVisible = { trails: true, huts: true };
+let difficultyVisible = { T1:true, T2:true, T3:true, T4:true, T5:true, T6:true, unknown:true };
+
+// ── Hut marker ────────────────────────────────────────────────────────────
+function hutIcon(tourism) {
+  const color = tourism === 'alpine_hut' ? '#f5a623' : '#b0a090';
+  return L.divIcon({
+    html: `<div style="
+      width:12px;height:12px;
+      background:${color};
+      border:2px solid #fff;
+      border-radius:50%;
+      box-shadow:0 1px 4px rgba(0,0,0,0.5)
+    "></div>`,
+    className: '',
+    iconSize: [12,12],
+    iconAnchor: [6,6]
+  });
+}
+
+// ── Overpass fetch ─────────────────────────────────────────────────────────
+// Bounding box for Julian Alps (wider area)
+const BBOX = '46.0,13.3,46.85,14.25';
+
+const QUERY = `
+[out:json][timeout:90][bbox:${BBOX}];
+(
+  way["highway"]["sac_scale"];
+  way["highway"="path"]["mountain_hiking"];
+  node["tourism"="alpine_hut"];
+  node["tourism"="wilderness_hut"];
+  node["tourism"="shelter"];
+);
+out geom tags;
+`.trim();
+
+async function fetchData() {
+  const url = 'https://overpass-api.de/api/interpreter';
+  const resp = await fetch(url, {
+    method: 'POST',
+    body: 'data=' + encodeURIComponent(QUERY)
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderData(data) {
+  let trailCount = 0, hutCount = 0;
+
+  // Group trail polylines by difficulty
+  const byDiff = {};
+
+  data.elements.forEach(el => {
+    if (el.type === 'way' && el.geometry && el.geometry.length > 1) {
+      const tags = el.tags || {};
+      const sac = tags.sac_scale || null;
+      const diff = getDifficulty(sac);
+      const key = diff.key;
+
+      const latlngs = el.geometry.map(n => [n.lat, n.lon]);
+      const name = tags.name || tags.ref || '';
+      const trail_visibility = tags.trail_visibility || '';
+      const surface = tags.surface || '';
+
+      const line = L.polyline(latlngs, {
+        color: diff.color,
+        weight: diff.width + 1,
+        opacity: 0.85,
+        smoothFactor: 1.5,
+        lineCap: 'round',
+        lineJoin: 'round'
+      });
+
+      line.bindPopup(`
+        <div class="popup-name">${name || 'Hiking trail'}</div>
+        <span class="popup-tag" style="background:${diff.color}22;color:${diff.color};border:1px solid ${diff.color}55">
+          ${diff.label}
+        </span>
+        <div class="popup-detail">
+          ${surface ? `<b>Surface:</b> ${surface}<br>` : ''}
+          ${trail_visibility ? `<b>Visibility:</b> ${trail_visibility}<br>` : ''}
+          ${tags.operator ? `<b>Operator:</b> ${tags.operator}` : ''}
+        </div>
+      `);
+
+      if (!byDiff[key]) byDiff[key] = [];
+      byDiff[key].push(line);
+      trailCount++;
+    }
+
+    if (el.type === 'node' && el.tags) {
+      const tags = el.tags;
+      const tourism = tags.tourism;
+      if (!tourism) return;
+
+      const name = tags.name || 'Mountain hut';
+      const ele = tags.ele ? `${tags.ele} m` : '';
+      const capacity = tags.capacity ? `Capacity: ${tags.capacity}` : '';
+      const opening = tags.opening_hours || '';
+      const operator = tags.operator || '';
+      const phone = tags.phone || tags['contact:phone'] || '';
+      const website = tags.website || tags['contact:website'] || '';
+
+      const marker = L.marker([el.lat, el.lon], { icon: hutIcon(tourism) });
+      marker.bindPopup(`
+        <div class="popup-name">🏠 ${name}</div>
+        <span class="popup-tag" style="background:#f5a62322;color:#f5a623;border:1px solid #f5a62344">
+          ${tourism.replace('_',' ')}
+        </span>
+        <div class="popup-detail">
+          ${ele ? `<b>Elevation:</b> ${ele}<br>` : ''}
+          ${capacity ? `${capacity}<br>` : ''}
+          ${operator ? `<b>Operator:</b> ${operator}<br>` : ''}
+          ${opening ? `<b>Hours:</b> ${opening}<br>` : ''}
+          ${phone ? `<b>Phone:</b> ${phone}<br>` : ''}
+          ${website ? `<a href="${website}" target="_blank" style="color:#f5a623">Website ↗</a>` : ''}
+        </div>
+      `);
+
+      hutLayer.addLayer(marker);
+      hutCount++;
+    }
+  });
+
+  // Add trail layers in order (easy first so hard ones are on top)
+  const keyOrder = ['unknown','T1','T2','T3','T4','T5','T6'];
+  keyOrder.forEach(key => {
+    if (byDiff[key]) {
+      const group = L.layerGroup(byDiff[key]).addTo(map);
+      trailLayers[key] = group;
+    }
+  });
+
+  // Update stats
+  const statsEl = document.getElementById('stats');
+  statsEl.style.display = 'block';
+  statsEl.innerHTML = `<span>${trailCount}</span> trail segments · <span>${hutCount}</span> huts`;
+}
+
+// ── Toggle helpers ─────────────────────────────────────────────────────────
+function toggleLayer(which, btn) {
+  layerVisible[which] = !layerVisible[which];
+  btn.classList.toggle('active', layerVisible[which]);
+
+  if (which === 'trails') {
+    Object.entries(trailLayers).forEach(([key, grp]) => {
+      if (layerVisible.trails && difficultyVisible[key]) map.addLayer(grp);
+      else map.removeLayer(grp);
+    });
+  } else if (which === 'huts') {
+    if (layerVisible.huts) map.addLayer(hutLayer);
+    else map.removeLayer(hutLayer);
+  }
+}
+
+function toggleDifficulty(key, row) {
+  difficultyVisible[key] = !difficultyVisible[key];
+  row.classList.toggle('muted', !difficultyVisible[key]);
+
+  if (trailLayers[key]) {
+    if (difficultyVisible[key] && layerVisible.trails) map.addLayer(trailLayers[key]);
+    else map.removeLayer(trailLayers[key]);
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(async () => {
+  const statusEl = document.getElementById('status');
+  const loadingEl = document.getElementById('loading');
+
+  try {
+    statusEl.textContent = 'Downloading trail geometries…';
+    const data = await fetchData();
+    statusEl.textContent = `Processing ${data.elements.length} features…`;
+    renderData(data);
+    loadingEl.classList.add('hidden');
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}. Try refreshing.`;
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
