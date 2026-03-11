@@ -1,4 +1,4 @@
-# Hiking Maps — Project Agenda
+# Hiking Maps — Project Overview
 
 ## Intent
 
