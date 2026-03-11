@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
     --ink: #1a1a18;
@@ -508,6 +509,7 @@
     <button class="ctrl-btn active" id="btn-water" onclick="toggleLayer('water',this)">Water</button>
     <button class="ctrl-btn" id="btn-locate" onclick="toggleLocate(this)">Locate me</button>
     <button class="ctrl-btn" id="btn-gpx" onclick="downloadGPX()" disabled>Download GPX</button>
+    <button class="ctrl-btn" id="btn-kmz" onclick="downloadKMZ()" disabled>Download KMZ</button>
   </div>
 
   <div id="stats"></div>
@@ -736,7 +738,7 @@ function renderData(data) {
 
       if (!byDiff[key]) byDiff[key] = [];
       byDiff[key].push(line);
-      trailData.push({ name, diffLabel: diff.label, color: diff.color, latlngs });
+      trailData.push({ name, diffLabel: diff.label, diffKey: diff.key, color: diff.color, latlngs });
       trailCount++;
     }
 
@@ -894,9 +896,23 @@ function toggleDifficulty(key, row) {
   input.addEventListener('blur', () => setTimeout(closeDropdown, 150));
 })();
 
-// ── GPX export ─────────────────────────────────────────────────────────────
+// ── GPX / KMZ export ───────────────────────────────────────────────────────
+function visibleTrails() {
+  const bounds = map.getBounds();
+  return trailData.filter(t =>
+    difficultyVisible[t.diffKey] &&
+    t.latlngs.some(([lat, lon]) => bounds.contains([lat, lon]))
+  );
+}
+
+function visibleWaypoints(data) {
+  const bounds = map.getBounds();
+  return data.filter(d => bounds.contains([d.lat, d.lon]));
+}
+
 function downloadGPX() {
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const fmt = n => n.toFixed(5);
 
   const GARMIN_COLOR = {
     '#2ecc71': 'Green', '#a8d850': 'Green', '#f39c12': 'Yellow',
@@ -904,7 +920,7 @@ function downloadGPX() {
   };
 
   const wpts = [
-    ...hutData.map(h => `  <wpt lat="${h.lat}" lon="${h.lon}">
+    ...visibleWaypoints(hutData).map(h => `  <wpt lat="${fmt(h.lat)}" lon="${fmt(h.lon)}">
     <name>${esc(h.name)}</name>${h.ele ? `\n    <ele>${h.ele}</ele>` : ''}
     <sym>Residence</sym>
     <type>hut</type>
@@ -913,9 +929,9 @@ function downloadGPX() {
       <osmand:icon>tourism_alpine_hut</osmand:icon>
     </extensions>
   </wpt>`),
-    ...waterData.map(w => {
+    ...visibleWaypoints(waterData).map(w => {
       const isSpring = w.type === 'natural spring';
-      return `  <wpt lat="${w.lat}" lon="${w.lon}">
+      return `  <wpt lat="${fmt(w.lat)}" lon="${fmt(w.lon)}">
     <name>${esc(w.name)}</name>${w.ele ? `\n    <ele>${w.ele}</ele>` : ''}
     <sym>${isSpring ? 'Water Source' : 'Drinking Water'}</sym>
     <type>${esc(w.type)}</type>
@@ -927,7 +943,7 @@ function downloadGPX() {
     })
   ].join('\n');
 
-  const trks = trailData.map(t => `  <trk>
+  const trks = visibleTrails().map(t => `  <trk>
     <name>${esc(t.name || 'Trail')}</name>
     <desc>${esc(t.diffLabel)}</desc>
     <extensions>
@@ -937,7 +953,7 @@ function downloadGPX() {
       <osmand:color>${t.color}</osmand:color>
     </extensions>
     <trkseg>
-${t.latlngs.map(([lat, lon]) => `      <trkpt lat="${lat}" lon="${lon}"/>`).join('\n')}
+${t.latlngs.map(([lat, lon]) => `      <trkpt lat="${fmt(lat)}" lon="${fmt(lon)}"/>`).join('\n')}
     </trkseg>
   </trk>`).join('\n');
 
@@ -958,6 +974,64 @@ ${trks}
   a.download = 'julian-alps.gpx';
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+function downloadKMZ() {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const fmt = n => n.toFixed(5);
+  const hexToKml = hex => 'ff' + hex.slice(5,7) + hex.slice(3,5) + hex.slice(1,3);
+
+  const colors = [...new Set(trailData.map(t => t.color))];
+  const styles = colors.map(c => `    <Style id="c${c.slice(1)}">
+      <LineStyle><color>${hexToKml(c)}</color><width>3</width></LineStyle>
+    </Style>`).join('\n');
+
+  const hutPlacemarks = visibleWaypoints(hutData).map(h => `    <Placemark>
+      <name>${esc(h.name)}</name>
+      <Point><coordinates>${fmt(h.lon)},${fmt(h.lat)}${h.ele ? `,${h.ele}` : ',0'}</coordinates></Point>
+    </Placemark>`).join('\n');
+
+  const waterPlacemarks = visibleWaypoints(waterData).map(w => `    <Placemark>
+      <name>${esc(w.name)}</name>
+      <Point><coordinates>${fmt(w.lon)},${fmt(w.lat)}${w.ele ? `,${w.ele}` : ',0'}</coordinates></Point>
+    </Placemark>`).join('\n');
+
+  const trailPlacemarks = visibleTrails().map(t => `    <Placemark>
+      <name>${esc(t.name || 'Trail')}</name>
+      <description>${esc(t.diffLabel)}</description>
+      <styleUrl>#c${t.color.slice(1)}</styleUrl>
+      <LineString>
+        <tessellate>1</tessellate>
+        <coordinates>${t.latlngs.map(([lat, lon]) => `${fmt(lon)},${fmt(lat)},0`).join(' ')}</coordinates>
+      </LineString>
+    </Placemark>`).join('\n');
+
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Julian Alps Hiking Trails</name>
+${styles}
+    <Folder><name>Huts</name>
+${hutPlacemarks}
+    </Folder>
+    <Folder><name>Water</name>
+${waterPlacemarks}
+    </Folder>
+    <Folder><name>Trails</name>
+${trailPlacemarks}
+    </Folder>
+  </Document>
+</kml>`;
+
+  new JSZip().file('julian-alps.kml', kml)
+    .generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 9 } })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'julian-alps.kmz';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
 }
 
 // ── Locate me ──────────────────────────────────────────────────────────────
@@ -1031,6 +1105,7 @@ function toggleLocate(btn) {
     renderData(data);
     loadingEl.classList.add('hidden');
     document.getElementById('btn-gpx').disabled = false;
+    document.getElementById('btn-kmz').disabled = false;
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}. Try refreshing.`;
     console.error(err);
