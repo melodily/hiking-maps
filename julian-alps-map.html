@@ -489,7 +489,7 @@
   <h1>Julian Alps</h1>
   <span class="sub">Hiking Trails · Difficulty Map</span>
   <div id="hut-search-wrapper">
-    <input type="text" id="hut-search" placeholder="Search huts…" autocomplete="off" spellcheck="false">
+    <input type="text" id="hut-search" placeholder="Search huts &amp; places…" autocomplete="off" spellcheck="false">
     <span id="search-icon">⌕</span>
     <div id="hut-suggestions"></div>
   </div>
@@ -631,6 +631,7 @@ let difficultyVisible = { T1:true, T2:true, T3:true, T4:true, T5:false, T6:false
 const hutData   = [];   // { name, lat, lon, ele, marker }
 const trailData = [];   // { name, diffLabel, latlngs }
 const waterData = [];   // { name, lat, lon, ele, type }
+const placeData = [];   // { name, lat, lon, ele, type, category:'place' }
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 function hutIcon() {
@@ -688,6 +689,11 @@ const QUERY = `
   way["tourism"="shelter"];
   node["natural"="spring"];
   node["amenity"="drinking_water"];
+  node["natural"~"^(peak|saddle)$"]["name"];
+  node["place"~"^(locality|hamlet|village)$"]["name"];
+  way["place"~"^(locality|hamlet)$"]["name"];
+  way["natural"~"^(plateau|valley|grassland)$"]["name"];
+  way["landuse"="meadow"]["name"];
 );
 out geom tags;
 `.trim();
@@ -824,9 +830,31 @@ function renderData(data) {
       } else if (t.natural === 'spring' || t.amenity === 'drinking_water') {
         addWaterMarker(t, el.lat, el.lon);
         waterCount++;
+      } else if (t.name && (t.natural === 'peak' || t.natural === 'saddle' ||
+                            t.place === 'locality' || t.place === 'hamlet' || t.place === 'village')) {
+        placeData.push({ name: t.name, lat: el.lat, lon: el.lon, type: t.natural || t.place, ele: t.ele || '', category: 'place' });
+      }
+    }
+
+    if (el.type === 'way' && el.tags && el.tags.name && el.geometry && el.geometry.length > 0 &&
+        !el.tags.highway && !el.tags.tourism) {
+      const t = el.tags;
+      if ((t.natural && ['plateau','valley','grassland'].includes(t.natural)) ||
+          (t.place  && ['locality','hamlet','village'].includes(t.place)) ||
+          t.landuse === 'meadow') {
+        const lat = el.geometry.reduce((s, g) => s + g.lat, 0) / el.geometry.length;
+        const lon = el.geometry.reduce((s, g) => s + g.lon, 0) / el.geometry.length;
+        placeData.push({ name: t.name, lat, lon, type: t.natural || t.place || t.landuse, ele: t.ele || '', category: 'place' });
       }
     }
   });
+
+  // Deduplicate places by name (node + way for same feature)
+  const seenPlaces = new Set();
+  for (let i = placeData.length - 1; i >= 0; i--) {
+    if (seenPlaces.has(placeData[i].name)) placeData.splice(i, 1);
+    else seenPlaces.add(placeData[i].name);
+  }
 
   // Add trail layers in order (easy first so hard ones are on top)
   const keyOrder = ['unknown','T1','T2','T3','T4','T5','T6'];
@@ -877,26 +905,41 @@ function toggleDifficulty(key, row) {
   }
 }
 
-// ── Hut search ─────────────────────────────────────────────────────────────
+// ── Search ─────────────────────────────────────────────────────────────────
 (function() {
-  const input = document.getElementById('hut-search');
+  const input    = document.getElementById('hut-search');
   const dropdown = document.getElementById('hut-suggestions');
-  let focusedIdx = -1;
+  let focusedIdx    = -1;
+  let currentMatches = [];
+
+  const PLACE_INFO = {
+    peak:      { color: '#c0392b', label: 'Peak' },
+    saddle:    { color: '#e67e22', label: 'Pass' },
+    locality:  { color: '#6c7a89', label: 'Area' },
+    hamlet:    { color: '#6c7a89', label: 'Hamlet' },
+    village:   { color: '#6c7a89', label: 'Village' },
+    meadow:    { color: '#5a7a5a', label: 'Meadow' },
+    grassland: { color: '#5a7a5a', label: 'Meadow' },
+    plateau:   { color: '#8a7a5a', label: 'Plateau' },
+    valley:    { color: '#5a7a8a', label: 'Valley' },
+  };
 
   function norm(s) {
     return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
 
-  function openHut(item) {
-    // Ensure huts layer is visible
-    if (!layerVisible.huts) {
-      layerVisible.huts = true;
-      map.addLayer(hutLayer);
-      document.getElementById('btn-huts').classList.add('active');
+  function openResult(item) {
+    if (item.category === 'hut') {
+      if (!layerVisible.huts) {
+        layerVisible.huts = true;
+        map.addLayer(hutLayer);
+        document.getElementById('btn-huts').classList.add('active');
+      }
+      map.flyTo([item.lat, item.lon], 15, { duration: 1.2 });
+      setTimeout(() => item.marker.openPopup(), 1250);
+    } else {
+      map.flyTo([item.lat, item.lon], 14, { duration: 1.2 });
     }
-    map.flyTo([item.lat, item.lon], 15, { duration: 1.2 });
-    // Open popup after fly animation
-    setTimeout(() => item.marker.openPopup(), 1250);
     input.value = item.name;
     closeDropdown();
   }
@@ -905,19 +948,25 @@ function toggleDifficulty(key, row) {
     dropdown.innerHTML = '';
     focusedIdx = -1;
     if (matches.length === 0) {
-      dropdown.innerHTML = '<div id="search-no-results">No huts found</div>';
+      dropdown.innerHTML = '<div id="search-no-results">No results found</div>';
       dropdown.classList.add('open');
       return;
     }
-    matches.forEach((item, i) => {
+    matches.forEach(item => {
       const div = document.createElement('div');
       div.className = 'suggestion-item';
+      const isHut  = item.category === 'hut';
+      const info   = isHut ? null : (PLACE_INFO[item.type] || { color: '#8a8478', label: item.type });
+      const dotColor = isHut ? '#1a3d6b' : info.color;
+      const meta   = isHut
+        ? (item.ele ? `${item.ele} m` : '')
+        : `${info.label}${item.ele ? ` · ${item.ele} m` : ''}`;
       div.innerHTML = `
-        <span class="suggestion-dot"></span>
+        <span class="suggestion-dot" style="background:${dotColor};border-color:rgba(255,255,255,0.45)"></span>
         <span>${item.name}</span>
-        ${item.ele ? `<span class="suggestion-meta">${item.ele} m</span>` : ''}
+        ${meta ? `<span class="suggestion-meta">${meta}</span>` : ''}
       `;
-      div.addEventListener('mousedown', e => { e.preventDefault(); openHut(item); });
+      div.addEventListener('mousedown', e => { e.preventDefault(); openResult(item); });
       dropdown.appendChild(div);
     });
     dropdown.classList.add('open');
@@ -938,13 +987,19 @@ function toggleDifficulty(key, row) {
     focusedIdx = idx;
   }
 
+  function runSearch(q) {
+    const qn = norm(q);
+    return [
+      ...hutData.map(h => ({ ...h, category: 'hut' })),
+      ...placeData,
+    ].filter(item => norm(item.name).includes(qn)).slice(0, 12);
+  }
+
   input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
+    const q = input.value.trim();
     if (!q) { closeDropdown(); return; }
-    const matches = hutData
-      .filter(h => norm(h.name).includes(norm(q)))
-      .slice(0, 10);
-    renderSuggestions(matches);
+    currentMatches = runSearch(q);
+    renderSuggestions(currentMatches);
   });
 
   input.addEventListener('keydown', e => {
@@ -957,11 +1012,7 @@ function toggleDifficulty(key, row) {
       setFocus(Math.max(focusedIdx - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (focusedIdx >= 0) {
-        const q = input.value.trim().toLowerCase();
-        const matches = hutData.filter(h => norm(h.name).includes(norm(q))).slice(0, 10);
-        if (matches[focusedIdx]) openHut(matches[focusedIdx]);
-      }
+      if (focusedIdx >= 0 && currentMatches[focusedIdx]) openResult(currentMatches[focusedIdx]);
     } else if (e.key === 'Escape') {
       closeDropdown();
       input.blur();
