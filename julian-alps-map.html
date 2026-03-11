@@ -504,7 +504,7 @@
     <div id="status">Querying Overpass API</div>
   </div>
 
-  <div id="legend">
+  <div id="legend" class="collapsed">
     <div id="legend-header" onclick="toggleLegend()">
       <h3>Difficulty (SAC Scale)</h3>
       <span id="legend-toggle">▲</span>
@@ -526,11 +526,11 @@
         <div class="legend-swatch" style="background:var(--t4)"></div>
         <div class="legend-label">T4 — Alpine Hiking<small>Some climbing, experience required</small></div>
       </div>
-      <div class="legend-row" data-key="T5" onclick="toggleDifficulty('T5',this)">
+      <div class="legend-row muted" data-key="T5" onclick="toggleDifficulty('T5',this)">
         <div class="legend-swatch" style="background:var(--t5)"></div>
         <div class="legend-label">T5 — Demanding Alpine<small>Advanced mountaineering skills</small></div>
       </div>
-      <div class="legend-row" data-key="T6" onclick="toggleDifficulty('T6',this)">
+      <div class="legend-row muted" data-key="T6" onclick="toggleDifficulty('T6',this)">
         <div class="legend-swatch" style="background:var(--t6)"></div>
         <div class="legend-label">T6 — Difficult Alpine<small>Highest difficulty, technical climbing</small></div>
       </div>
@@ -625,7 +625,7 @@ const hutLayer   = L.layerGroup().addTo(map);
 const waterLayer = L.layerGroup().addTo(map);
 let allTrailGroup = L.layerGroup().addTo(map);
 let layerVisible = { trails: true, huts: true, water: true };
-let difficultyVisible = { T1:true, T2:true, T3:true, T4:true, T5:true, T6:true, unknown:true };
+let difficultyVisible = { T1:true, T2:true, T3:true, T4:true, T5:false, T6:false, unknown:true };
 
 // ── Hut search data ────────────────────────────────────────────────────────
 const hutData   = [];   // { name, lat, lon, ele, marker }
@@ -832,8 +832,9 @@ function renderData(data) {
   const keyOrder = ['unknown','T1','T2','T3','T4','T5','T6'];
   keyOrder.forEach(key => {
     if (byDiff[key]) {
-      const group = L.layerGroup(byDiff[key]).addTo(map);
+      const group = L.layerGroup(byDiff[key]);
       trailLayers[key] = group;
+      if (difficultyVisible[key]) group.addTo(map);
     }
   });
 
