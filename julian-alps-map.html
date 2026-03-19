@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
     --ink: #1a1a18;
@@ -17,8 +18,8 @@
     --mist: #c8c4b8;
     --pine: #2d4a2d;
 
-    --t1: #2ecc71;
-    --t2: #a8d850;
+    --t1: #1a7a3a;
+    --t2: #5a9400;
     --t3: #f39c12;
     --t4: #e67e22;
     --t5: #e74c3c;
@@ -342,15 +343,77 @@
     line-height: 1.5;
   }
 
-  /* Controls */
-  #controls {
+  /* Menu toggle button */
+  #menu-btn {
     position: absolute;
     top: 16px;
     right: 16px;
     z-index: 900;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: rgba(26,26,24,0.92);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: var(--paper);
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background 0.15s, border-color 0.15s;
+  }
+  #menu-btn:hover, #menu-btn.open {
+    background: rgba(50,50,46,0.95);
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  /* Collapsible menu panel */
+  #menu-panel {
+    position: absolute;
+    top: 62px;
+    right: 16px;
+    z-index: 900;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+    background: rgba(26,26,24,0.92);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    backdrop-filter: blur(8px);
+    min-width: 160px;
+    padding: 0 10px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
+  }
+  #menu-panel.open {
+    max-height: 400px;
+    opacity: 1;
+    padding: 10px;
+    pointer-events: auto;
+  }
+  #menu-panel .ctrl-btn { width: 100%; text-align: left; }
+  .menu-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 2px 0;
+  }
+
+  /* Locate me button (bottom-right icon) */
+  #btn-locate {
+    position: absolute;
+    bottom: 40px;
+    right: 16px;
+    z-index: 900;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
   }
 
   .ctrl-btn {
@@ -426,7 +489,7 @@
   <h1>Julian Alps</h1>
   <span class="sub">Hiking Trails · Difficulty Map</span>
   <div id="hut-search-wrapper">
-    <input type="text" id="hut-search" placeholder="Search huts…" autocomplete="off" spellcheck="false">
+    <input type="text" id="hut-search" placeholder="Search huts &amp; places…" autocomplete="off" spellcheck="false">
     <span id="search-icon">⌕</span>
     <div id="hut-suggestions"></div>
   </div>
@@ -441,7 +504,7 @@
     <div id="status">Querying Overpass API</div>
   </div>
 
-  <div id="legend">
+  <div id="legend" class="collapsed">
     <div id="legend-header" onclick="toggleLegend()">
       <h3>Difficulty (SAC Scale)</h3>
       <span id="legend-toggle">▲</span>
@@ -463,11 +526,11 @@
         <div class="legend-swatch" style="background:var(--t4)"></div>
         <div class="legend-label">T4 — Alpine Hiking<small>Some climbing, experience required</small></div>
       </div>
-      <div class="legend-row" data-key="T5" onclick="toggleDifficulty('T5',this)">
+      <div class="legend-row muted" data-key="T5" onclick="toggleDifficulty('T5',this)">
         <div class="legend-swatch" style="background:var(--t5)"></div>
         <div class="legend-label">T5 — Demanding Alpine<small>Advanced mountaineering skills</small></div>
       </div>
-      <div class="legend-row" data-key="T6" onclick="toggleDifficulty('T6',this)">
+      <div class="legend-row muted" data-key="T6" onclick="toggleDifficulty('T6',this)">
         <div class="legend-swatch" style="background:var(--t6)"></div>
         <div class="legend-label">T6 — Difficult Alpine<small>Highest difficulty, technical climbing</small></div>
       </div>
@@ -502,13 +565,26 @@
     </div>
   </div>
 
-  <div id="controls">
+  <button id="menu-btn" class="ctrl-btn" onclick="toggleMenu()" aria-label="Map layers and export" title="Map layers and export">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/>
+    </svg>
+  </button>
+
+  <div id="menu-panel">
     <button class="ctrl-btn active" id="btn-trails" onclick="toggleLayer('trails',this)">Trails</button>
     <button class="ctrl-btn active" id="btn-huts" onclick="toggleLayer('huts',this)">Huts</button>
     <button class="ctrl-btn active" id="btn-water" onclick="toggleLayer('water',this)">Water</button>
-    <button class="ctrl-btn" id="btn-locate" onclick="toggleLocate(this)">Locate me</button>
+    <hr class="menu-divider">
     <button class="ctrl-btn" id="btn-gpx" onclick="downloadGPX()" disabled>Download GPX</button>
+    <button class="ctrl-btn" id="btn-kmz" onclick="downloadKMZ()" disabled>Download KMZ</button>
   </div>
+
+  <button id="btn-locate" class="ctrl-btn" onclick="toggleLocate(this)" title="Locate me" aria-label="Locate me">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="2" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="22" y2="12"/>
+    </svg>
+  </button>
 
   <div id="stats"></div>
 </div>
@@ -531,8 +607,8 @@ L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
 
 // ── Difficulty config ──────────────────────────────────────────────────────
 const DIFFICULTY = {
-  hiking:                    { key:'T1', label:'T1 – Hiking',          color:'#2ecc71', width:2.5 },
-  mountain_hiking:           { key:'T2', label:'T2 – Mountain Hiking', color:'#a8d850', width:2.5 },
+  hiking:                    { key:'T1', label:'T1 – Hiking',          color:'#1a7a3a', width:2.5 },
+  mountain_hiking:           { key:'T2', label:'T2 – Mountain Hiking', color:'#5a9400', width:2.5 },
   demanding_mountain_hiking: { key:'T3', label:'T3 – Demanding Mountain', color:'#f39c12', width:3 },
   alpine_hiking:             { key:'T4', label:'T4 – Alpine Hiking',   color:'#e67e22', width:3 },
   demanding_alpine_hiking:   { key:'T5', label:'T5 – Demanding Alpine',color:'#e74c3c', width:3.5 },
@@ -549,12 +625,13 @@ const hutLayer   = L.layerGroup().addTo(map);
 const waterLayer = L.layerGroup().addTo(map);
 let allTrailGroup = L.layerGroup().addTo(map);
 let layerVisible = { trails: true, huts: true, water: true };
-let difficultyVisible = { T1:true, T2:true, T3:true, T4:true, T5:true, T6:true, unknown:true };
+let difficultyVisible = { T1:true, T2:true, T3:true, T4:true, T5:false, T6:false, unknown:true };
 
 // ── Hut search data ────────────────────────────────────────────────────────
 const hutData   = [];   // { name, lat, lon, ele, marker }
 const trailData = [];   // { name, diffLabel, latlngs }
 const waterData = [];   // { name, lat, lon, ele, type }
+const placeData = [];   // { name, lat, lon, ele, type, category:'place' }
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 function hutIcon() {
@@ -612,6 +689,11 @@ const QUERY = `
   way["tourism"="shelter"];
   node["natural"="spring"];
   node["amenity"="drinking_water"];
+  node["natural"~"^(peak|saddle)$"]["name"];
+  node["place"~"^(locality|hamlet|village)$"]["name"];
+  way["place"~"^(locality|hamlet)$"]["name"];
+  way["natural"~"^(plateau|valley|grassland)$"]["name"];
+  way["landuse"="meadow"]["name"];
 );
 out geom tags;
 `.trim();
@@ -736,7 +818,7 @@ function renderData(data) {
 
       if (!byDiff[key]) byDiff[key] = [];
       byDiff[key].push(line);
-      trailData.push({ name, diffLabel: diff.label, color: diff.color, latlngs });
+      trailData.push({ name, diffLabel: diff.label, diffKey: diff.key, color: diff.color, latlngs });
       trailCount++;
     }
 
@@ -748,16 +830,39 @@ function renderData(data) {
       } else if (t.natural === 'spring' || t.amenity === 'drinking_water') {
         addWaterMarker(t, el.lat, el.lon);
         waterCount++;
+      } else if (t.name && (t.natural === 'peak' || t.natural === 'saddle' ||
+                            t.place === 'locality' || t.place === 'hamlet' || t.place === 'village')) {
+        placeData.push({ name: t.name, lat: el.lat, lon: el.lon, type: t.natural || t.place, ele: t.ele || '', category: 'place' });
+      }
+    }
+
+    if (el.type === 'way' && el.tags && el.tags.name && el.geometry && el.geometry.length > 0 &&
+        !el.tags.highway && !el.tags.tourism) {
+      const t = el.tags;
+      if ((t.natural && ['plateau','valley','grassland'].includes(t.natural)) ||
+          (t.place  && ['locality','hamlet','village'].includes(t.place)) ||
+          t.landuse === 'meadow') {
+        const lat = el.geometry.reduce((s, g) => s + g.lat, 0) / el.geometry.length;
+        const lon = el.geometry.reduce((s, g) => s + g.lon, 0) / el.geometry.length;
+        placeData.push({ name: t.name, lat, lon, type: t.natural || t.place || t.landuse, ele: t.ele || '', category: 'place' });
       }
     }
   });
+
+  // Deduplicate places by name (node + way for same feature)
+  const seenPlaces = new Set();
+  for (let i = placeData.length - 1; i >= 0; i--) {
+    if (seenPlaces.has(placeData[i].name)) placeData.splice(i, 1);
+    else seenPlaces.add(placeData[i].name);
+  }
 
   // Add trail layers in order (easy first so hard ones are on top)
   const keyOrder = ['unknown','T1','T2','T3','T4','T5','T6'];
   keyOrder.forEach(key => {
     if (byDiff[key]) {
-      const group = L.layerGroup(byDiff[key]).addTo(map);
+      const group = L.layerGroup(byDiff[key]);
       trailLayers[key] = group;
+      if (difficultyVisible[key]) group.addTo(map);
     }
   });
 
@@ -800,26 +905,41 @@ function toggleDifficulty(key, row) {
   }
 }
 
-// ── Hut search ─────────────────────────────────────────────────────────────
+// ── Search ─────────────────────────────────────────────────────────────────
 (function() {
-  const input = document.getElementById('hut-search');
+  const input    = document.getElementById('hut-search');
   const dropdown = document.getElementById('hut-suggestions');
-  let focusedIdx = -1;
+  let focusedIdx    = -1;
+  let currentMatches = [];
+
+  const PLACE_INFO = {
+    peak:      { color: '#c0392b', label: 'Peak' },
+    saddle:    { color: '#e67e22', label: 'Pass' },
+    locality:  { color: '#6c7a89', label: 'Area' },
+    hamlet:    { color: '#6c7a89', label: 'Hamlet' },
+    village:   { color: '#6c7a89', label: 'Village' },
+    meadow:    { color: '#5a7a5a', label: 'Meadow' },
+    grassland: { color: '#5a7a5a', label: 'Meadow' },
+    plateau:   { color: '#8a7a5a', label: 'Plateau' },
+    valley:    { color: '#5a7a8a', label: 'Valley' },
+  };
 
   function norm(s) {
     return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
 
-  function openHut(item) {
-    // Ensure huts layer is visible
-    if (!layerVisible.huts) {
-      layerVisible.huts = true;
-      map.addLayer(hutLayer);
-      document.getElementById('btn-huts').classList.add('active');
+  function openResult(item) {
+    if (item.category === 'hut') {
+      if (!layerVisible.huts) {
+        layerVisible.huts = true;
+        map.addLayer(hutLayer);
+        document.getElementById('btn-huts').classList.add('active');
+      }
+      map.flyTo([item.lat, item.lon], 15, { duration: 1.2 });
+      setTimeout(() => item.marker.openPopup(), 1250);
+    } else {
+      map.flyTo([item.lat, item.lon], 14, { duration: 1.2 });
     }
-    map.flyTo([item.lat, item.lon], 15, { duration: 1.2 });
-    // Open popup after fly animation
-    setTimeout(() => item.marker.openPopup(), 1250);
     input.value = item.name;
     closeDropdown();
   }
@@ -828,19 +948,25 @@ function toggleDifficulty(key, row) {
     dropdown.innerHTML = '';
     focusedIdx = -1;
     if (matches.length === 0) {
-      dropdown.innerHTML = '<div id="search-no-results">No huts found</div>';
+      dropdown.innerHTML = '<div id="search-no-results">No results found</div>';
       dropdown.classList.add('open');
       return;
     }
-    matches.forEach((item, i) => {
+    matches.forEach(item => {
       const div = document.createElement('div');
       div.className = 'suggestion-item';
+      const isHut  = item.category === 'hut';
+      const info   = isHut ? null : (PLACE_INFO[item.type] || { color: '#8a8478', label: item.type });
+      const dotColor = isHut ? '#1a3d6b' : info.color;
+      const meta   = isHut
+        ? (item.ele ? `${item.ele} m` : '')
+        : `${info.label}${item.ele ? ` · ${item.ele} m` : ''}`;
       div.innerHTML = `
-        <span class="suggestion-dot"></span>
+        <span class="suggestion-dot" style="background:${dotColor};border-color:rgba(255,255,255,0.45)"></span>
         <span>${item.name}</span>
-        ${item.ele ? `<span class="suggestion-meta">${item.ele} m</span>` : ''}
+        ${meta ? `<span class="suggestion-meta">${meta}</span>` : ''}
       `;
-      div.addEventListener('mousedown', e => { e.preventDefault(); openHut(item); });
+      div.addEventListener('mousedown', e => { e.preventDefault(); openResult(item); });
       dropdown.appendChild(div);
     });
     dropdown.classList.add('open');
@@ -861,13 +987,19 @@ function toggleDifficulty(key, row) {
     focusedIdx = idx;
   }
 
+  function runSearch(q) {
+    const qn = norm(q);
+    return [
+      ...hutData.map(h => ({ ...h, category: 'hut' })),
+      ...placeData,
+    ].filter(item => norm(item.name).includes(qn)).slice(0, 12);
+  }
+
   input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
+    const q = input.value.trim();
     if (!q) { closeDropdown(); return; }
-    const matches = hutData
-      .filter(h => norm(h.name).includes(norm(q)))
-      .slice(0, 10);
-    renderSuggestions(matches);
+    currentMatches = runSearch(q);
+    renderSuggestions(currentMatches);
   });
 
   input.addEventListener('keydown', e => {
@@ -880,11 +1012,7 @@ function toggleDifficulty(key, row) {
       setFocus(Math.max(focusedIdx - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (focusedIdx >= 0) {
-        const q = input.value.trim().toLowerCase();
-        const matches = hutData.filter(h => norm(h.name).includes(norm(q))).slice(0, 10);
-        if (matches[focusedIdx]) openHut(matches[focusedIdx]);
-      }
+      if (focusedIdx >= 0 && currentMatches[focusedIdx]) openResult(currentMatches[focusedIdx]);
     } else if (e.key === 'Escape') {
       closeDropdown();
       input.blur();
@@ -894,9 +1022,23 @@ function toggleDifficulty(key, row) {
   input.addEventListener('blur', () => setTimeout(closeDropdown, 150));
 })();
 
-// ── GPX export ─────────────────────────────────────────────────────────────
+// ── GPX / KMZ export ───────────────────────────────────────────────────────
+function visibleTrails() {
+  const bounds = map.getBounds();
+  return trailData.filter(t =>
+    difficultyVisible[t.diffKey] &&
+    t.latlngs.some(([lat, lon]) => bounds.contains([lat, lon]))
+  );
+}
+
+function visibleWaypoints(data) {
+  const bounds = map.getBounds();
+  return data.filter(d => bounds.contains([d.lat, d.lon]));
+}
+
 function downloadGPX() {
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const fmt = n => n.toFixed(5);
 
   const GARMIN_COLOR = {
     '#2ecc71': 'Green', '#a8d850': 'Green', '#f39c12': 'Yellow',
@@ -904,7 +1046,7 @@ function downloadGPX() {
   };
 
   const wpts = [
-    ...hutData.map(h => `  <wpt lat="${h.lat}" lon="${h.lon}">
+    ...visibleWaypoints(hutData).map(h => `  <wpt lat="${fmt(h.lat)}" lon="${fmt(h.lon)}">
     <name>${esc(h.name)}</name>${h.ele ? `\n    <ele>${h.ele}</ele>` : ''}
     <sym>Residence</sym>
     <type>hut</type>
@@ -913,9 +1055,9 @@ function downloadGPX() {
       <osmand:icon>tourism_alpine_hut</osmand:icon>
     </extensions>
   </wpt>`),
-    ...waterData.map(w => {
+    ...visibleWaypoints(waterData).map(w => {
       const isSpring = w.type === 'natural spring';
-      return `  <wpt lat="${w.lat}" lon="${w.lon}">
+      return `  <wpt lat="${fmt(w.lat)}" lon="${fmt(w.lon)}">
     <name>${esc(w.name)}</name>${w.ele ? `\n    <ele>${w.ele}</ele>` : ''}
     <sym>${isSpring ? 'Water Source' : 'Drinking Water'}</sym>
     <type>${esc(w.type)}</type>
@@ -927,7 +1069,7 @@ function downloadGPX() {
     })
   ].join('\n');
 
-  const trks = trailData.map(t => `  <trk>
+  const trks = visibleTrails().map(t => `  <trk>
     <name>${esc(t.name || 'Trail')}</name>
     <desc>${esc(t.diffLabel)}</desc>
     <extensions>
@@ -937,7 +1079,7 @@ function downloadGPX() {
       <osmand:color>${t.color}</osmand:color>
     </extensions>
     <trkseg>
-${t.latlngs.map(([lat, lon]) => `      <trkpt lat="${lat}" lon="${lon}"/>`).join('\n')}
+${t.latlngs.map(([lat, lon]) => `      <trkpt lat="${fmt(lat)}" lon="${fmt(lon)}"/>`).join('\n')}
     </trkseg>
   </trk>`).join('\n');
 
@@ -960,6 +1102,81 @@ ${trks}
   URL.revokeObjectURL(a.href);
 }
 
+function downloadKMZ() {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const fmt = n => n.toFixed(5);
+  const hexToKml = hex => 'ff' + hex.slice(5,7) + hex.slice(3,5) + hex.slice(1,3);
+
+  const colors = [...new Set(trailData.map(t => t.color))];
+  const styles = colors.map(c => `    <Style id="c${c.slice(1)}">
+      <LineStyle><color>${hexToKml(c)}</color><width>3</width></LineStyle>
+    </Style>`).join('\n');
+
+  const hutPlacemarks = visibleWaypoints(hutData).map(h => `    <Placemark>
+      <name>${esc(h.name)}</name>
+      <Point><coordinates>${fmt(h.lon)},${fmt(h.lat)}${h.ele ? `,${h.ele}` : ',0'}</coordinates></Point>
+    </Placemark>`).join('\n');
+
+  const waterPlacemarks = visibleWaypoints(waterData).map(w => `    <Placemark>
+      <name>${esc(w.name)}</name>
+      <Point><coordinates>${fmt(w.lon)},${fmt(w.lat)}${w.ele ? `,${w.ele}` : ',0'}</coordinates></Point>
+    </Placemark>`).join('\n');
+
+  const trailPlacemarks = visibleTrails().map(t => `    <Placemark>
+      <name>${esc(t.name || 'Trail')}</name>
+      <description>${esc(t.diffLabel)}</description>
+      <styleUrl>#c${t.color.slice(1)}</styleUrl>
+      <LineString>
+        <tessellate>1</tessellate>
+        <coordinates>${t.latlngs.map(([lat, lon]) => `${fmt(lon)},${fmt(lat)},0`).join(' ')}</coordinates>
+      </LineString>
+    </Placemark>`).join('\n');
+
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Julian Alps Hiking Trails</name>
+${styles}
+    <Folder><name>Huts</name>
+${hutPlacemarks}
+    </Folder>
+    <Folder><name>Water</name>
+${waterPlacemarks}
+    </Folder>
+    <Folder><name>Trails</name>
+${trailPlacemarks}
+    </Folder>
+  </Document>
+</kml>`;
+
+  new JSZip().file('julian-alps.kml', kml)
+    .generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 9 } })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'julian-alps.kmz';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+}
+
+// ── Menu ───────────────────────────────────────────────────────────────────
+function toggleMenu() {
+  const panel = document.getElementById('menu-panel');
+  const btn   = document.getElementById('menu-btn');
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+document.addEventListener('click', e => {
+  const panel = document.getElementById('menu-panel');
+  const btn   = document.getElementById('menu-btn');
+  if (!panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.classList.remove('open');
+    btn.classList.remove('open');
+  }
+});
+
 // ── Locate me ──────────────────────────────────────────────────────────────
 let locateWatcher = null;
 let locateMarker = null;
@@ -972,7 +1189,7 @@ function toggleLocate(btn) {
     if (locateMarker) { locateMarker.remove(); locateMarker = null; }
     if (locateCircle) { locateCircle.remove(); locateCircle = null; }
     btn.classList.remove('active');
-    btn.textContent = 'Locate me';
+    btn.title = 'Locate me';
     return;
   }
 
@@ -980,8 +1197,6 @@ function toggleLocate(btn) {
     alert('Geolocation is not supported by your browser.');
     return;
   }
-
-  btn.textContent = 'Locating…';
 
   locateWatcher = navigator.geolocation.watchPosition(pos => {
     const { latitude: lat, longitude: lon, accuracy } = pos.coords;
@@ -1011,9 +1226,8 @@ function toggleLocate(btn) {
     }).addTo(map);
 
     btn.classList.add('active');
-    btn.textContent = 'Tracking';
+    btn.title = 'Tracking';
   }, err => {
-    btn.textContent = 'Locate me';
     locateWatcher = null;
     alert(`Location error: ${err.message}`);
   }, { enableHighAccuracy: true });
@@ -1031,6 +1245,7 @@ function toggleLocate(btn) {
     renderData(data);
     loadingEl.classList.add('hidden');
     document.getElementById('btn-gpx').disabled = false;
+    document.getElementById('btn-kmz').disabled = false;
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}. Try refreshing.`;
     console.error(err);
