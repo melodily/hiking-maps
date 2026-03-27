@@ -24,81 +24,81 @@
 - [ ] Add OpenTopoMap tile layer
 
 ## 4. Difficulty config
-- [ ] Copy `DIFFICULTY` lookup table and `getDifficulty(sacScale)`
+- [x] Copy `DIFFICULTY` lookup table and `getDifficulty(sacScale)`
 
 ## 5. Layer groups + state
-- [ ] Declare `trailLayers`, `hutLayer`, `waterLayer`
-- [ ] Declare `layerVisible` and `difficultyVisible` state objects
+- [x] Declare `trailLayers`, `hutLayer`, `waterLayer`
+- [x] Declare `layerVisible` and `difficultyVisible` state objects
 
 ## 6. Data arrays
-- [ ] Declare `hutData`, `trailData`, `waterData` arrays
+- [x] Declare `hutData`, `trailData`, `waterData` arrays
 
 ## 7. Icons
-- [ ] Copy `hutIcon()`, `springIcon()`, `drinkingWaterIcon()`
+- [x] Copy `hutIcon()`, `springIcon()`, `drinkingWaterIcon()`
 
 ## 8. Geocoding + bbox helpers
-- [ ] `geocode(query)` — GET Nominatim search, return `{ lat, lon, bbox, displayName }`
-- [ ] `capBbox(bbox, centerLat, centerLon)` — clamp each axis to MAX_SIDE_KM=50, return `{ bbox, capped }`
+- [x] `geocode(query)` — GET Nominatim search, return `{ lat, lon, bbox, displayName }`
+- [x] `capBbox(bbox, centerLat, centerLon)` — clamp each axis to MAX_SIDE_KM=50, return `{ bbox, capped }`
 
 ## 9. Overpass query builders
-- [ ] `buildSacQuery(bbox)` — SAC trails + huts + water
-- [ ] `buildFallbackQuery(bbox)` — generic `highway~path|footway|track` + huts + water
-- [ ] `fetchOverpass(query)` — POST to Overpass API, return parsed JSON
+- [x] `buildSacQuery(bbox)` — SAC trails + huts + water
+- [x] `buildFallbackQuery(bbox)` — generic `highway~path|footway|track` + huts + water
+- [x] `fetchOverpass(query)` — POST to Overpass API, return parsed JSON
 
 ## 10. clearMapData()
-- [ ] Remove all layers from map (`hutLayer`, `waterLayer`, each entry in `trailLayers`)
-- [ ] Clear `hutData`, `trailData`, `waterData` arrays
-- [ ] Reset `trailLayers` object
-- [ ] Hide stats bar and disable GPX button
+- [x] Remove all layers from map (`hutLayer`, `waterLayer`, each entry in `trailLayers`)
+- [x] Clear `hutData`, `trailData`, `waterData` arrays
+- [x] Reset `trailLayers` object
+- [x] Hide stats bar and disable GPX button
 
 ## 11. Marker helpers
-- [ ] Copy `addHutMarker(tags, lat, lon)` — pushes to `hutLayer` and `hutData`
-- [ ] Copy `addWaterMarker(tags, lat, lon)` — pushes to `waterLayer` and `waterData`
+- [x] Copy `addHutMarker(tags, lat, lon)` — pushes to `hutLayer` and `hutData`
+- [x] Copy `addWaterMarker(tags, lat, lon)` — pushes to `waterLayer` and `waterData`
 
 ## 12. renderData(data, fallback)
-- [ ] Copy way/node dispatch loop from `julian-alps-map.html`
-- [ ] In fallback mode: use a single blue colour for all trails instead of SAC colours
-- [ ] Add trail polylines to `trailLayers` keyed by difficulty (or `'generic'` in fallback)
-- [ ] Update stats bar
+- [x] Copy way/node dispatch loop from `julian-alps-map.html`
+- [x] In fallback mode: use a single blue colour for all trails instead of SAC colours
+- [x] Add trail polylines to `trailLayers` keyed by difficulty (or `'generic'` in fallback)
+- [x] Update stats bar
 
 ## 13. setFallbackLegend(on)
-- [ ] Toggle `.sac-only` rows hidden/visible
-- [ ] Toggle `.fallback-only` row visible/hidden
-- [ ] Update legend title text
+- [x] Toggle `.sac-only` rows hidden/visible
+- [x] Toggle `.fallback-only` row visible/hidden
+- [x] Update legend title text
 
 ## 14. Toggle helpers
-- [ ] Copy `toggleLegend()`
-- [ ] Copy `toggleLayer(which, btn)`
-- [ ] Copy `toggleDifficulty(key, row)`
+- [x] Copy `toggleLegend()`
+- [x] Copy `toggleLayer(which, btn)`
+- [x] Copy `toggleDifficulty(key, row)`
 
 ## 15. Hut search
-- [ ] Copy hut search IIFE (`norm`, `openHut`, `renderSuggestions`, `closeDropdown`, `setFocus`, event listeners)
+- [x] Copy hut search IIFE (`norm`, `openHut`, `renderSuggestions`, `closeDropdown`, `setFocus`, event listeners)
 
 ## 16. GPX export
-- [ ] Copy `downloadGPX()`, make filename dynamic: `placeName.replace(/\s+/g,'-').toLowerCase() + '.gpx'`
+- [x] Copy `downloadGPX()`, make filename dynamic: `placeName.replace(/\s+/g,'-').toLowerCase() + '.gpx'`
 
 ## 17. Locate me
-- [ ] Copy `toggleLocate(btn)` with watcher, pulse marker, accuracy circle
+- [x] Copy `toggleLocate(btn)` with watcher, pulse marker, accuracy circle
 
 ## 18. doSearch(query)
-- [ ] Show spinner, set loading message
-- [ ] Call `geocode(query)`; on failure show error in status, stop spinner
-- [ ] Call `capBbox`; show/hide `#cap-banner`
-- [ ] Call `clearMapData()`
-- [ ] Fetch SAC query; if 0 trails → fetch fallback query
-- [ ] Call `setFallbackLegend(fallback)`
-- [ ] Call `renderData(data, fallback)`
-- [ ] Fit map to bbox
-- [ ] Update `#map-title` to `displayName`
-- [ ] Push `?q=` to URL without page reload
-- [ ] Enable GPX button; hide spinner
+- [x] Show spinner, set loading message
+- [x] Call `geocode(query)`; on failure show error in status, stop spinner
+- [x] Call `capBbox`; show/hide `#cap-banner`
+- [x] Call `clearMapData()`
+- [x] Fetch SAC query; if 0 trails → fetch fallback query
+- [x] Call `setFallbackLegend(fallback)`
+- [x] Call `renderData(data, fallback)`
+- [x] Fit map to bbox
+- [x] Update `#map-title` to `displayName`
+- [x] Push `?q=` to URL without page reload
+- [x] Enable GPX button; hide spinner
 
 ## 19. Place search UI wiring
-- [ ] `#btn-go` click → `doSearch(input.value.trim())`
-- [ ] `#place-input` keydown Enter → same
-- [ ] On load: read `?q=` from URL; if present, pre-fill input and call `doSearch`
+- [x] `#btn-go` click → `doSearch(input.value.trim())`
+- [x] `#place-input` keydown Enter → same
+- [x] On load: read `?q=` from URL; if present, pre-fill input and call `doSearch`
 
 ## 20. Initial loading overlay state
-- [ ] Hide spinner ring on initial load
-- [ ] Set message to "Enter a place name above to generate a hiking map"
-- [ ] Keep overlay visible until first search completes
+- [x] Hide spinner ring on initial load
+- [x] Set message to "Enter a place name above to generate a hiking map"
+- [x] Keep overlay visible until first search completes
