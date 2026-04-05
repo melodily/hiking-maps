@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(gh pr:*)"
+    ]
+  }
+}

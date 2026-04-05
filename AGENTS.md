@@ -67,3 +67,11 @@ Current maps:
 | Function | Description |
 |----------|-------------|
 | `toggleLocate(btn)` | Starts or stops `navigator.geolocation.watchPosition`. While active, renders a pulsing blue dot at the device's position plus a translucent accuracy circle. Button cycles through "Locate me" → "Locating…" → "Tracking" states. |
+
+---
+
+# Collaboration expectations
+
+- Max 3 attempts for failures.
+- When tasked to do a new feature, create a plan and tasklist in `plans/<feature>` directory first.
+- Before writing any code, confirm your understanding of the feature.

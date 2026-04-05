@@ -1,0 +1,53 @@
+{
+  "version": 0.6,
+  "elements": [
+    {
+      "type": "way",
+      "id": 100001,
+      "geometry": [
+        { "lat": 46.370, "lon": 13.820 },
+        { "lat": 46.375, "lon": 13.825 },
+        { "lat": 46.380, "lon": 13.830 }
+      ],
+      "tags": {
+        "highway": "path",
+        "sac_scale": "hiking",
+        "name": "Valley Trail"
+      }
+    },
+    {
+      "type": "way",
+      "id": 100002,
+      "geometry": [
+        { "lat": 46.375, "lon": 13.830 },
+        { "lat": 46.378, "lon": 13.835 }
+      ],
+      "tags": {
+        "highway": "path",
+        "sac_scale": "mountain_hiking",
+        "name": "Ridge Path"
+      }
+    },
+    {
+      "type": "node",
+      "id": 200001,
+      "lat": 46.376,
+      "lon": 13.832,
+      "tags": {
+        "tourism": "alpine_hut",
+        "name": "Dom na Planini",
+        "ele": "1685"
+      }
+    },
+    {
+      "type": "node",
+      "id": 200002,
+      "lat": 46.372,
+      "lon": 13.822,
+      "tags": {
+        "natural": "spring",
+        "name": "Izvir"
+      }
+    }
+  ]
+}

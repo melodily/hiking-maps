@@ -1,0 +1,9 @@
+[
+  {
+    "place_id": 12345,
+    "lat": "46.3793",
+    "lon": "13.8369",
+    "display_name": "Triglav, Bohinj, Radovljica, Upper Carniola, Slovenia",
+    "boundingbox": ["46.3700", "46.3900", "13.8200", "13.8500"]
+  }
+]

@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hiking Map Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a18;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --stone: #8a8478;
+    --mist: #c8c4b8;
+    --pine: #2d4a2d;
+
+    --t1: #1a7a3a;
+    --t2: #5a9400;
+    --t3: #f39c12;
+    --t4: #e67e22;
+    --t5: #e74c3c;
+    --t6: #8e1a1a;
+    --unknown: #999;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--ink);
+    color: var(--paper);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: var(--ink);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    z-index: 1000;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--paper);
+    white-space: nowrap;
+  }
+
+  /* Place search */
+  #place-search-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #place-input {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    padding: 7px 12px;
+    width: 260px;
+    outline: none;
+    transition: background 0.15s, border-color 0.15s;
+    backdrop-filter: blur(8px);
+  }
+  #place-input::placeholder { color: var(--stone); }
+  #place-input:focus {
+    background: rgba(255,255,255,0.11);
+    border-color: rgba(255,255,255,0.3);
+  }
+
+  #btn-go {
+    background: var(--paper);
+    border: 1px solid var(--paper);
+    color: var(--ink);
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    letter-spacing: 0.04em;
+  }
+  #btn-go:hover { opacity: 0.85; }
+
+  /* Place suggestions dropdown */
+  #place-input-wrapper {
+    position: relative;
+  }
+
+  #place-suggestions {
+    position: fixed;
+    background: rgba(26,26,24,0.97);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 3000;
+    display: none;
+  }
+  #place-suggestions.open { display: block; }
+
+  /* Hut search */
+  #hut-search-wrapper {
+    position: relative;
+    margin-left: auto;
+  }
+
+  #hut-search {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    padding: 7px 34px 7px 12px;
+    width: 220px;
+    outline: none;
+    transition: background 0.15s, border-color 0.15s;
+    backdrop-filter: blur(8px);
+  }
+  #hut-search::placeholder { color: var(--stone); }
+  #hut-search:focus {
+    background: rgba(255,255,255,0.11);
+    border-color: rgba(255,255,255,0.3);
+  }
+
+  #search-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--stone);
+    pointer-events: none;
+    font-size: 0.85rem;
+  }
+
+  #hut-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: rgba(26,26,24,0.97);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 1100;
+    display: none;
+  }
+  #hut-suggestions.open { display: block; }
+
+  .suggestion-item {
+    padding: 9px 14px;
+    font-size: 0.78rem;
+    color: var(--paper);
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    transition: background 0.1s;
+  }
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:hover, .suggestion-item.focused {
+    background: rgba(255,255,255,0.07);
+  }
+  .suggestion-dot {
+    width: 9px;
+    height: 9px;
+    background: #1a3d6b;
+    border: 1.5px solid #fff;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .suggestion-meta {
+    font-size: 0.68rem;
+    color: var(--stone);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  #search-no-results {
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    color: var(--stone);
+  }
+
+  /* Cap banner */
+  #cap-banner {
+    background: #b8960022;
+    color: #f0c040;
+    font-size: 0.75rem;
+    padding: 5px 24px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(240,192,64,0.15);
+  }
+  #cap-banner[hidden] { display: none; }
+
+  #map-container {
+    flex: 1;
+    position: relative;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Legend */
+  #legend {
+    position: absolute;
+    bottom: 28px;
+    left: 16px;
+    background: rgba(26,26,24,0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 14px 18px;
+    z-index: 900;
+    min-width: 210px;
+  }
+
+  #legend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  #legend h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mist);
+    margin-bottom: 0;
+  }
+
+  #legend-toggle {
+    color: var(--stone);
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+    line-height: 1;
+  }
+
+  #legend.collapsed #legend-toggle { transform: rotate(180deg); }
+
+  #legend-body {
+    margin-top: 10px;
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    max-height: 400px;
+    opacity: 1;
+  }
+
+  #legend.collapsed #legend-body {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+  }
+
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    padding: 3px 4px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .legend-row:hover { background: rgba(255,255,255,0.06); }
+  .legend-row.muted { opacity: 0.35; }
+
+  .legend-row.sac-only { display: flex; }
+  .legend-row.fallback-only { display: none; }
+
+  .legend-swatch {
+    width: 28px;
+    height: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .legend-label {
+    font-size: 0.78rem;
+    color: var(--paper);
+    line-height: 1.2;
+  }
+
+  .legend-label small {
+    display: block;
+    color: var(--stone);
+    font-size: 0.68rem;
+    margin-top: 1px;
+  }
+
+  .legend-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 8px 0;
+  }
+
+  /* Loading overlay */
+  #loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(26,26,24,0.82);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    gap: 16px;
+    transition: opacity 0.4s;
+  }
+
+  #loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .loader-ring {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: var(--paper);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    display: none;
+  }
+  .loader-ring.visible { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #loading p {
+    font-size: 0.85rem;
+    color: var(--mist);
+    letter-spacing: 0.06em;
+  }
+
+  #status {
+    font-size: 0.7rem;
+    color: var(--stone);
+    margin-top: 4px;
+  }
+
+  /* Controls (menu button + panel) */
+  #controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 900;
+  }
+
+  #menu-btn {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  #menu-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(26,26,24,0.92);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    backdrop-filter: blur(8px);
+    min-width: 160px;
+    padding: 0 10px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
+    margin-top: 6px;
+  }
+  #menu-panel.open {
+    max-height: 400px;
+    opacity: 1;
+    padding: 10px;
+    pointer-events: auto;
+  }
+  #menu-panel .ctrl-btn { width: 100%; text-align: left; }
+  .menu-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 2px 0;
+  }
+
+  /* Locate me button */
+  #btn-locate {
+    position: absolute;
+    bottom: 40px;
+    right: 16px;
+    z-index: 900;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .ctrl-btn {
+    background: rgba(26,26,24,0.92);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--paper);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background 0.15s, border-color 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .ctrl-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .ctrl-btn:hover {
+    background: rgba(50,50,46,0.95);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .ctrl-btn.active {
+    background: var(--paper);
+    color: var(--ink);
+    border-color: var(--paper);
+  }
+
+  /* Stats bar */
+  #stats {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: rgba(26,26,24,0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 8px 14px;
+    z-index: 900;
+    font-size: 0.72rem;
+    color: var(--stone);
+    display: none;
+  }
+  #stats span { color: var(--paper); font-weight: 500; }
+
+  /* Popup styles */
+  .leaflet-popup-content-wrapper {
+    background: rgba(26,26,24,0.97) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 8px !important;
+    color: var(--paper) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  }
+  .leaflet-popup-tip { background: rgba(26,26,24,0.97) !important; }
+  .leaflet-popup-content { margin: 12px 16px !important; }
+
+  .popup-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+    color: var(--paper);
+  }
+
+  .popup-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+
+  .popup-detail {
+    font-size: 0.75rem;
+    color: var(--stone);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  /* Locate pulse */
+  @keyframes pulse {
+    0%   { transform: scale(1);   opacity: 1; }
+    70%  { transform: scale(2.8); opacity: 0; }
+    100% { transform: scale(1);   opacity: 0; }
+  }
+  .locate-pulse {
+    width: 14px; height: 14px;
+    background: #4a9eff;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .locate-ring {
+    position: absolute;
+    top: 0; left: 0;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #4a9eff55;
+    animation: pulse 1.8s ease-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="map-title">Hiking Map Generator</h1>
+  <div id="place-search-wrapper">
+    <div id="place-input-wrapper">
+      <input type="text" id="place-input" placeholder="Enter a place name…" autocomplete="off" spellcheck="false">
+      <div id="place-suggestions"></div>
+    </div>
+    <button id="btn-go">Go</button>
+  </div>
+  <div id="hut-search-wrapper">
+    <input type="text" id="hut-search" placeholder="Search huts &amp; places…" autocomplete="off" spellcheck="false">
+    <span id="search-icon">⌕</span>
+    <div id="hut-suggestions"></div>
+  </div>
+</header>
+
+<div id="cap-banner" hidden>Area capped to 50 × 50 km around centre</div>
+
+<div id="map-container">
+  <div id="map"></div>
+
+  <div id="loading">
+    <div class="loader-ring"></div>
+    <p>Enter a place name above to generate a hiking map</p>
+    <div id="status"></div>
+  </div>
+
+  <div id="legend" class="collapsed">
+    <div id="legend-header" onclick="toggleLegend()">
+      <h3 id="legend-title">Difficulty (SAC Scale)</h3>
+      <span id="legend-toggle">▲</span>
+    </div>
+    <div id="legend-body">
+      <div class="legend-row sac-only" data-key="T1" onclick="toggleDifficulty('T1',this)">
+        <div class="legend-swatch" style="background:var(--t1)"></div>
+        <div class="legend-label">T1 — Hiking<small>Well-marked paths, no special gear</small></div>
+      </div>
+      <div class="legend-row sac-only" data-key="T2" onclick="toggleDifficulty('T2',this)">
+        <div class="legend-swatch" style="background:var(--t2)"></div>
+        <div class="legend-label">T2 — Mountain Hiking<small>Some exposed terrain, surefootedness needed</small></div>
+      </div>
+      <div class="legend-row sac-only" data-key="T3" onclick="toggleDifficulty('T3',this)">
+        <div class="legend-swatch" style="background:var(--t3)"></div>
+        <div class="legend-label">T3 — Demanding Mountain<small>Hands occasionally needed, good footwear</small></div>
+      </div>
+      <div class="legend-row sac-only" data-key="T4" onclick="toggleDifficulty('T4',this)">
+        <div class="legend-swatch" style="background:var(--t4)"></div>
+        <div class="legend-label">T4 — Alpine Hiking<small>Some climbing, experience required</small></div>
+      </div>
+      <div class="legend-row sac-only muted" data-key="T5" onclick="toggleDifficulty('T5',this)">
+        <div class="legend-swatch" style="background:var(--t5)"></div>
+        <div class="legend-label">T5 — Demanding Alpine<small>Advanced mountaineering skills</small></div>
+      </div>
+      <div class="legend-row sac-only muted" data-key="T6" onclick="toggleDifficulty('T6',this)">
+        <div class="legend-swatch" style="background:var(--t6)"></div>
+        <div class="legend-label">T6 — Difficult Alpine<small>Highest difficulty, technical climbing</small></div>
+      </div>
+      <div class="legend-row sac-only" data-key="unknown" onclick="toggleDifficulty('unknown',this)">
+        <div class="legend-swatch" style="background:var(--unknown)"></div>
+        <div class="legend-label">Unknown difficulty</div>
+      </div>
+      <div class="legend-row fallback-only" data-key="generic" onclick="toggleDifficulty('generic',this)">
+        <div class="legend-swatch" style="background:#4a90d9"></div>
+        <div class="legend-label">Hiking path</div>
+      </div>
+      <hr class="legend-divider">
+      <div class="legend-row" style="cursor:default">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="18" viewBox="0 0 22 20" style="flex-shrink:0">
+          <polygon points="11,1 21,9 1,9" fill="#1a3d6b" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+          <rect x="3" y="9" width="16" height="10" rx="1" fill="#1a3d6b" stroke="white" stroke-width="1.5"/>
+          <rect x="9" y="13" width="4" height="6" fill="white" rx="0.5"/>
+        </svg>
+        <div class="legend-label">Mountain Hut / Shelter</div>
+      </div>
+      <div class="legend-row" style="cursor:default">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="17" viewBox="0 0 16 20" style="flex-shrink:0">
+          <path d="M8 1C8 1 1 9 1 14a7 7 0 0 0 14 0C15 9 8 1 8 1z" fill="#2980b9" stroke="white" stroke-width="1.5"/>
+        </svg>
+        <div class="legend-label">Natural Spring</div>
+      </div>
+      <div class="legend-row" style="cursor:default">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="16" viewBox="0 0 16 18" style="flex-shrink:0">
+          <path d="M2 4h12l-2 12H4L2 4z" fill="#16a085" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+          <line x1="2" y1="4" x2="14" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M5 8 Q8 6.5 11 8" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          <path d="M5 11 Q8 9.5 11 11" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div class="legend-label">Drinking Water</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button id="menu-btn" class="ctrl-btn" onclick="toggleMenu()" aria-label="Map layers and export" title="Map layers and export">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/>
+      </svg>
+    </button>
+    <div id="menu-panel">
+      <button class="ctrl-btn active" id="btn-trails" onclick="toggleLayer('trails',this)">Trails</button>
+      <button class="ctrl-btn active" id="btn-huts" onclick="toggleLayer('huts',this)">Huts</button>
+      <button class="ctrl-btn active" id="btn-water" onclick="toggleLayer('water',this)">Water</button>
+      <hr class="menu-divider">
+      <button class="ctrl-btn" id="btn-gpx" onclick="downloadGPX()" disabled>Download GPX</button>
+    </div>
+  </div>
+
+  <button id="btn-locate" class="ctrl-btn" onclick="toggleLocate(this)" title="Locate me" aria-label="Locate me">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="2" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="22" y2="12"/>
+    </svg>
+  </button>
+
+  <div id="stats"></div>
+</div>
+
+<script type="module">
+import { DIFFICULTY, getDifficulty, MAX_SIDE_KM, capBbox, buildSacQuery, buildFallbackQuery, geocode, geocodeSuggest, fetchOverpass } from './lib/map-utils.js';
+
+// ── Map setup ──────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [20, 0],
+  zoom: 2,
+  zoomControl: true,
+  preferCanvas: true
+});
+
+// Topographic tile layer (OpenTopoMap)
+L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors, SRTM | Map: © OpenTopoMap (CC-BY-SA)',
+  maxZoom: 17,
+  opacity: 0.85
+}).addTo(map);
+
+// ── Layer groups + state ───────────────────────────────────────────────────
+let trailLayers = {};  // keyed by difficulty key (or 'generic' in fallback)
+const hutLayer   = L.layerGroup().addTo(map);
+const waterLayer = L.layerGroup().addTo(map);
+let layerVisible     = { trails: true, huts: true, water: true };
+let difficultyVisible = { T1:true, T2:true, T3:true, T4:true, T5:false, T6:false, unknown:true, generic:true };
+
+// ── Data arrays ────────────────────────────────────────────────────────────
+let hutData   = [];   // { name, lat, lon, ele, marker }
+let trailData = [];   // { name, diffLabel, latlngs }
+let waterData = [];   // { name, lat, lon, ele, type }
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+function hutIcon() {
+  return L.divIcon({
+    html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="20" viewBox="0 0 22 20">
+      <polygon points="11,1 21,9 1,9" fill="#1a3d6b" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="3" y="9" width="16" height="10" rx="1" fill="#1a3d6b" stroke="white" stroke-width="1.5"/>
+      <rect x="9" y="13" width="4" height="6" fill="white" rx="0.5"/>
+    </svg>`,
+    className: '',
+    iconSize: [22, 20],
+    iconAnchor: [11, 20]
+  });
+}
+
+function springIcon() {
+  return L.divIcon({
+    html: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 16 20">
+      <path d="M8 1C8 1 1 9 1 14a7 7 0 0 0 14 0C15 9 8 1 8 1z" fill="#2980b9" stroke="white" stroke-width="1.5"/>
+    </svg>`,
+    className: '',
+    iconSize: [16, 20],
+    iconAnchor: [8, 20]
+  });
+}
+
+function drinkingWaterIcon() {
+  return L.divIcon({
+    html: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="18" viewBox="0 0 16 18">
+      <path d="M2 4h12l-2 12H4L2 4z" fill="#16a085" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+      <line x1="2" y1="4" x2="14" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M5 8 Q8 6.5 11 8" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <path d="M5 11 Q8 9.5 11 11" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    </svg>`,
+    className: '',
+    iconSize: [16, 18],
+    iconAnchor: [8, 18]
+  });
+}
+
+// ── clearMapData ───────────────────────────────────────────────────────────
+function clearMapData() {
+  hutLayer.clearLayers();
+  waterLayer.clearLayers();
+  Object.values(trailLayers).forEach(grp => map.removeLayer(grp));
+  trailLayers = {};
+  hutData   = [];
+  trailData = [];
+  waterData = [];
+  const statsEl = document.getElementById('stats');
+  if (statsEl) statsEl.style.display = 'none';
+  const gpxBtn = document.getElementById('btn-gpx');
+  if (gpxBtn) gpxBtn.disabled = true;
+}
+
+// ── Marker helpers ─────────────────────────────────────────────────────────
+function addHutMarker(tags, lat, lon) {
+  const tourism  = tags.tourism;
+  const name     = tags.name || 'Mountain hut';
+  const ele      = tags.ele ? `${tags.ele} m` : '';
+  const capacity = tags.capacity ? `Capacity: ${tags.capacity}` : '';
+  const opening  = tags.opening_hours || '';
+  const operator = tags.operator || '';
+  const phone    = tags.phone || tags['contact:phone'] || '';
+  const website  = tags.website || tags['contact:website'] || tags['url'] || '';
+
+  const marker = L.marker([lat, lon], { icon: hutIcon() });
+  marker.bindPopup(`
+    <div class="popup-name">🏔 ${name}</div>
+    <span class="popup-tag" style="background:#1a3d6b33;color:#6fa3d8;border:1px solid #1a3d6b66">
+      ${tourism.replace(/_/g,' ')}
+    </span>
+    <div class="popup-detail">
+      ${ele       ? `<b>Elevation:</b> ${ele}<br>`                                          : ''}
+      ${capacity  ? `${capacity}<br>`                                                        : ''}
+      ${operator  ? `<b>Operator:</b> ${operator}<br>`                                      : ''}
+      ${opening   ? `<b>Hours:</b> ${opening}<br>`                                          : ''}
+      ${phone     ? `<b>Phone:</b> <a href="tel:${phone}" style="color:#6fa3d8">${phone}</a><br>` : ''}
+      ${website   ? `<a href="${website}" target="_blank" style="color:#6fa3d8;font-weight:500">Book / Website ↗</a>` : ''}
+    </div>
+  `);
+  hutLayer.addLayer(marker);
+  hutData.push({ name, lat, lon, ele: tags.ele || '', marker });
+}
+
+function addWaterMarker(tags, lat, lon) {
+  const isSpring  = tags.natural === 'spring';
+  const name      = tags.name || (isSpring ? 'Spring' : 'Drinking water');
+  const ele       = tags.ele ? `${tags.ele} m` : '';
+  const note      = tags.description || tags.note || '';
+  const safe      = tags.drinking_water;
+  const color     = isSpring ? '#2980b9' : '#16a085';
+  const typeLabel = isSpring ? 'natural spring' : 'drinking water';
+
+  const marker = L.marker([lat, lon], { icon: isSpring ? springIcon() : drinkingWaterIcon() });
+  marker.bindPopup(`
+    <div class="popup-name">${isSpring ? '💧' : '🚰'} ${name}</div>
+    <span class="popup-tag" style="background:${color}22;color:${color};border:1px solid ${color}44">
+      ${typeLabel}
+    </span>
+    <div class="popup-detail">
+      ${ele  ? `<b>Elevation:</b> ${ele}<br>` : ''}
+      ${safe ? `<b>Drinking water:</b> ${safe}<br>` : ''}
+      ${note ? `${note}` : ''}
+    </div>
+  `);
+  waterLayer.addLayer(marker);
+  waterData.push({ name, lat, lon, ele: tags.ele || '', type: typeLabel });
+}
+
+// ── renderData(data, fallback) ─────────────────────────────────────────────
+function renderData(data, fallback) {
+  let trailCount = 0, hutCount = 0, waterCount = 0;
+  const byDiff = {};
+
+  data.elements.forEach(el => {
+    if (el.type === 'way' && el.geometry && el.geometry.length > 1) {
+      const tags = el.tags || {};
+
+      // Way-based hut — use centroid
+      if (tags.tourism === 'alpine_hut' || tags.tourism === 'wilderness_hut' || tags.tourism === 'shelter') {
+        const lats = el.geometry.map(n => n.lat);
+        const lons = el.geometry.map(n => n.lon);
+        addHutMarker(tags, lats.reduce((a,b)=>a+b,0)/lats.length, lons.reduce((a,b)=>a+b,0)/lons.length);
+        hutCount++;
+        return;
+      }
+
+      let diff, key;
+      if (fallback) {
+        diff = { key:'generic', label:'Hiking trail', color:'#3a7bd5', width:2.5 };
+        key  = 'generic';
+      } else {
+        diff = getDifficulty(tags.sac_scale || null);
+        key  = diff.key;
+      }
+
+      const latlngs = el.geometry.map(n => [n.lat, n.lon]);
+      const name    = tags.name || tags.ref || '';
+      const line    = L.polyline(latlngs, {
+        color: diff.color, weight: diff.width + 1,
+        opacity: 0.85, smoothFactor: 1.5,
+        lineCap: 'round', lineJoin: 'round'
+      });
+      line.bindPopup(`
+        <div class="popup-name">${name || 'Hiking trail'}</div>
+        <span class="popup-tag" style="background:${diff.color}22;color:${diff.color};border:1px solid ${diff.color}55">
+          ${diff.label}
+        </span>
+        <div class="popup-detail">
+          ${tags.surface          ? `<b>Surface:</b> ${tags.surface}<br>`               : ''}
+          ${tags.trail_visibility ? `<b>Visibility:</b> ${tags.trail_visibility}<br>`   : ''}
+          ${tags.operator         ? `<b>Operator:</b> ${tags.operator}`                 : ''}
+        </div>
+      `);
+
+      if (!byDiff[key]) byDiff[key] = [];
+      byDiff[key].push(line);
+      trailData.push({ name, diffLabel: diff.label, diffKey: key, color: diff.color, latlngs });
+      trailCount++;
+    }
+
+    if (el.type === 'node' && el.tags) {
+      const t = el.tags;
+      if (t.tourism) {
+        addHutMarker(t, el.lat, el.lon);
+        hutCount++;
+      } else if (t.natural === 'spring' || t.amenity === 'drinking_water') {
+        addWaterMarker(t, el.lat, el.lon);
+        waterCount++;
+      }
+    }
+  });
+
+  // Add trail layers (easy first so harder are on top)
+  const keyOrder = fallback ? ['generic'] : ['unknown','T1','T2','T3','T4','T5','T6'];
+  keyOrder.forEach(key => {
+    if (byDiff[key]) {
+      const group = L.layerGroup(byDiff[key]);
+      trailLayers[key] = group;
+      if (difficultyVisible[key]) group.addTo(map);
+    }
+  });
+
+  const statsEl = document.getElementById('stats');
+  if (statsEl) {
+    statsEl.style.display = 'block';
+    statsEl.innerHTML = `<span>${trailCount}</span> trails · <span>${hutCount}</span> huts · <span>${waterCount}</span> water sources`;
+  }
+}
+
+// ── setFallbackLegend(on) ──────────────────────────────────────────────────
+function setFallbackLegend(on) {
+  document.querySelectorAll('.legend-row.sac-only').forEach(el => {
+    el.style.display = on ? 'none' : '';
+  });
+  document.querySelectorAll('.legend-row.fallback-only').forEach(el => {
+    el.style.display = on ? '' : 'none';
+  });
+  const title = document.getElementById('legend-title');
+  if (title) title.textContent = on ? 'Trails' : 'Difficulty (SAC Scale)';
+}
+
+// ── Toggle helpers ─────────────────────────────────────────────────────────
+function toggleMenu() {
+  const panel = document.getElementById('menu-panel');
+  const btn   = document.getElementById('menu-btn');
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+document.addEventListener('click', e => {
+  const panel = document.getElementById('menu-panel');
+  const btn   = document.getElementById('menu-btn');
+  if (!panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.classList.remove('open');
+    btn.classList.remove('open');
+  }
+});
+
+function toggleLegend() {
+  document.getElementById('legend').classList.toggle('collapsed');
+}
+
+function toggleLayer(which, btn) {
+  layerVisible[which] = !layerVisible[which];
+  btn.classList.toggle('active', layerVisible[which]);
+
+  if (which === 'trails') {
+    Object.entries(trailLayers).forEach(([key, grp]) => {
+      if (layerVisible.trails && difficultyVisible[key]) map.addLayer(grp);
+      else map.removeLayer(grp);
+    });
+  } else if (which === 'huts') {
+    if (layerVisible.huts) map.addLayer(hutLayer);
+    else map.removeLayer(hutLayer);
+  } else if (which === 'water') {
+    if (layerVisible.water) map.addLayer(waterLayer);
+    else map.removeLayer(waterLayer);
+  }
+}
+
+function toggleDifficulty(key, row) {
+  difficultyVisible[key] = !difficultyVisible[key];
+  row.classList.toggle('muted', !difficultyVisible[key]);
+
+  if (trailLayers[key]) {
+    if (difficultyVisible[key] && layerVisible.trails) map.addLayer(trailLayers[key]);
+    else map.removeLayer(trailLayers[key]);
+  }
+}
+
+// ── Hut search ─────────────────────────────────────────────────────────────
+(function() {
+  const input    = document.getElementById('hut-search');
+  const dropdown = document.getElementById('hut-suggestions');
+  let focusedIdx    = -1;
+  let currentMatches = [];
+
+  function norm(s) {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function openHut(item) {
+    if (!layerVisible.huts) {
+      layerVisible.huts = true;
+      map.addLayer(hutLayer);
+      document.getElementById('btn-huts').classList.add('active');
+    }
+    map.flyTo([item.lat, item.lon], 15, { duration: 1.2 });
+    setTimeout(() => item.marker.openPopup(), 1250);
+    input.value = item.name;
+    closeDropdown();
+  }
+
+  function renderSuggestions(matches) {
+    dropdown.innerHTML = '';
+    focusedIdx = -1;
+    if (matches.length === 0) {
+      dropdown.innerHTML = '<div id="search-no-results">No results found</div>';
+      dropdown.classList.add('open');
+      return;
+    }
+    matches.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'suggestion-item';
+      const meta = item.ele ? `${item.ele} m` : '';
+      div.innerHTML = `
+        <span class="suggestion-dot" style="background:#1a3d6b;border-color:rgba(255,255,255,0.45)"></span>
+        <span>${item.name}</span>
+        ${meta ? `<span class="suggestion-meta">${meta}</span>` : ''}
+      `;
+      div.addEventListener('mousedown', e => { e.preventDefault(); openHut(item); });
+      dropdown.appendChild(div);
+    });
+    dropdown.classList.add('open');
+  }
+
+  function closeDropdown() {
+    dropdown.classList.remove('open');
+    focusedIdx = -1;
+  }
+
+  function setFocus(idx) {
+    const items = dropdown.querySelectorAll('.suggestion-item');
+    items.forEach(el => el.classList.remove('focused'));
+    if (idx >= 0 && idx < items.length) {
+      items[idx].classList.add('focused');
+      items[idx].scrollIntoView({ block: 'nearest' });
+    }
+    focusedIdx = idx;
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (!q) { closeDropdown(); return; }
+    const qn = norm(q);
+    currentMatches = hutData.filter(h => norm(h.name).includes(qn)).slice(0, 12);
+    renderSuggestions(currentMatches);
+  });
+
+  input.addEventListener('keydown', e => {
+    const items = dropdown.querySelectorAll('.suggestion-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocus(Math.min(focusedIdx + 1, items.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocus(Math.max(focusedIdx - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (focusedIdx >= 0 && currentMatches[focusedIdx]) openHut(currentMatches[focusedIdx]);
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+      input.blur();
+    }
+  });
+
+  input.addEventListener('blur', () => setTimeout(closeDropdown, 150));
+})();
+
+// ── GPX export ─────────────────────────────────────────────────────────────
+let placeName = '';
+
+function visibleTrails() {
+  const bounds = map.getBounds();
+  return trailData.filter(t =>
+    difficultyVisible[t.diffKey] &&
+    t.latlngs.some(([lat, lon]) => bounds.contains([lat, lon]))
+  );
+}
+
+function visibleWaypoints(data) {
+  const bounds = map.getBounds();
+  return data.filter(d => bounds.contains([d.lat, d.lon]));
+}
+
+function downloadGPX() {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const fmt = n => n.toFixed(5);
+
+  const GARMIN_COLOR = {
+    '#1a7a3a':'Green','#5a9400':'Green','#f39c12':'Yellow',
+    '#e67e22':'DarkYellow','#e74c3c':'Red','#8e1a1a':'DarkRed',
+    '#999999':'LightGray','#3a7bd5':'Blue',
+  };
+
+  const wpts = [
+    ...visibleWaypoints(hutData).map(h => `  <wpt lat="${fmt(h.lat)}" lon="${fmt(h.lon)}">
+    <name>${esc(h.name)}</name>${h.ele ? `\n    <ele>${h.ele}</ele>` : ''}
+    <sym>Residence</sym><type>hut</type>
+    <extensions>
+      <osmand:color>#1a3d6b</osmand:color>
+      <osmand:icon>tourism_alpine_hut</osmand:icon>
+    </extensions>
+  </wpt>`),
+    ...visibleWaypoints(waterData).map(w => {
+      const isSpring = w.type === 'natural spring';
+      return `  <wpt lat="${fmt(w.lat)}" lon="${fmt(w.lon)}">
+    <name>${esc(w.name)}</name>${w.ele ? `\n    <ele>${w.ele}</ele>` : ''}
+    <sym>${isSpring ? 'Water Source' : 'Drinking Water'}</sym><type>${esc(w.type)}</type>
+    <extensions>
+      <osmand:color>${isSpring ? '#2980b9' : '#16a085'}</osmand:color>
+      <osmand:icon>${isSpring ? 'natural_spring' : 'amenity_drinking_water'}</osmand:icon>
+    </extensions>
+  </wpt>`;
+    })
+  ].join('\n');
+
+  const trks = visibleTrails().map(t => `  <trk>
+    <name>${esc(t.name || 'Trail')}</name>
+    <desc>${esc(t.diffLabel)}</desc>
+    <extensions>
+      <gpxx:TrackExtension>
+        <gpxx:DisplayColor>${GARMIN_COLOR[t.color] || 'DarkGray'}</gpxx:DisplayColor>
+      </gpxx:TrackExtension>
+      <osmand:color>${t.color}</osmand:color>
+    </extensions>
+    <trkseg>
+${t.latlngs.map(([lat, lon]) => `      <trkpt lat="${fmt(lat)}" lon="${fmt(lon)}"/>`).join('\n')}
+    </trkseg>
+  </trk>`).join('\n');
+
+  const title = esc(placeName || 'Hiking Trails');
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Hiking Map Generator"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3"
+  xmlns:osmand="https://osmand.net"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata><name>${title}</name></metadata>
+${wpts}
+${trks}
+</gpx>`;
+
+  const filename = (placeName || 'hiking-map').replace(/\s+/g, '-').toLowerCase() + '.gpx';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Locate me ──────────────────────────────────────────────────────────────
+let locateWatcher = null;
+let locateMarker  = null;
+let locateCircle  = null;
+
+function toggleLocate(btn) {
+  if (locateWatcher !== null) {
+    navigator.geolocation.clearWatch(locateWatcher);
+    locateWatcher = null;
+    if (locateMarker) { locateMarker.remove(); locateMarker = null; }
+    if (locateCircle) { locateCircle.remove(); locateCircle = null; }
+    btn.classList.remove('active');
+    btn.title = 'Locate me';
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+
+  locateWatcher = navigator.geolocation.watchPosition(pos => {
+    const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+
+    if (!locateMarker) {
+      locateMarker = L.marker([lat, lon], {
+        icon: L.divIcon({
+          html: '<div class="locate-pulse"></div><div class="locate-ring"></div>',
+          className: '',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        }),
+        zIndexOffset: 1000
+      }).addTo(map);
+      map.flyTo([lat, lon], Math.max(map.getZoom(), 14), { duration: 1 });
+    } else {
+      locateMarker.setLatLng([lat, lon]);
+    }
+
+    if (locateCircle) locateCircle.remove();
+    locateCircle = L.circle([lat, lon], {
+      radius: accuracy, color: '#4a9eff',
+      fillColor: '#4a9eff', fillOpacity: 0.08, weight: 1
+    }).addTo(map);
+
+    btn.classList.add('active');
+    btn.title = 'Tracking';
+  }, err => {
+    locateWatcher = null;
+    alert(`Location error: ${err.message}`);
+  }, { enableHighAccuracy: true });
+}
+
+// ── doSearch(query) ────────────────────────────────────────────────────────
+async function doSearch(query) {
+  if (!query) return;
+
+  const loadingEl = document.getElementById('loading');
+  const statusEl  = document.getElementById('status');
+  const ringEl    = loadingEl.querySelector('.loader-ring');
+  const capBanner = document.getElementById('cap-banner');
+
+  loadingEl.classList.remove('hidden');
+  if (ringEl) ringEl.classList.add('visible');
+  statusEl.textContent = `Searching for "${query}"…`;
+
+  let geo;
+  try {
+    geo = await geocode(query);
+  } catch (err) {
+    statusEl.textContent = `Not found: ${err.message}`;
+    if (ringEl) ringEl.classList.remove('visible');
+    return;
+  }
+
+  const { bbox: rawBbox, capped } = capBbox(geo.bbox, geo.lat, geo.lon);
+  if (capBanner) capBanner.style.display = capped ? '' : 'none';
+
+  clearMapData();
+
+  let data, fallback = false;
+  try {
+    statusEl.textContent = 'Fetching hiking trails…';
+    data = await fetchOverpass(buildSacQuery(rawBbox));
+
+    const trailCount = data.elements.filter(el =>
+      el.type === 'way' && el.tags && el.tags.sac_scale
+    ).length;
+
+    if (trailCount === 0) {
+      fallback = true;
+      statusEl.textContent = 'No SAC trails found — trying generic paths…';
+      data = await fetchOverpass(buildFallbackQuery(rawBbox));
+    }
+  } catch (err) {
+    statusEl.textContent = `Overpass error: ${err.message}`;
+    if (ringEl) ringEl.classList.remove('visible');
+    return;
+  }
+
+  setFallbackLegend(fallback);
+  statusEl.textContent = `Rendering ${data.elements.length} features…`;
+  renderData(data, fallback);
+
+  // Fit map to bbox (S, W, N, E)
+  const [s, w, n, e] = rawBbox.split(',').map(Number);
+  map.fitBounds([[s, w], [n, e]], { padding: [20, 20] });
+
+  placeName = geo.displayName;
+  const titleEl = document.getElementById('map-title');
+  if (titleEl) titleEl.textContent = geo.displayName;
+
+  history.pushState(null, '', `?q=${encodeURIComponent(query)}`);
+
+  const gpxBtn = document.getElementById('btn-gpx');
+  if (gpxBtn) gpxBtn.disabled = false;
+
+  if (ringEl) ringEl.classList.remove('visible');
+  loadingEl.classList.add('hidden');
+}
+
+// ── Place search UI wiring ─────────────────────────────────────────────────
+(function() {
+  const input    = document.getElementById('place-input');
+  const btn      = document.getElementById('btn-go');
+  const dropdown = document.getElementById('place-suggestions');
+  // Move to body so it escapes the header's stacking context and the loading overlay's blur
+  document.body.appendChild(dropdown);
+  let focusedIdx     = -1;
+  let currentResults = [];
+  let debounceTimer  = null;
+
+  function positionDropdown() {
+    const rect = input.getBoundingClientRect();
+    dropdown.style.top   = (rect.bottom + 4) + 'px';
+    dropdown.style.left  = rect.left + 'px';
+    dropdown.style.width = rect.width + 'px';
+  }
+
+  function closeDropdown() {
+    dropdown.classList.remove('open');
+    focusedIdx = -1;
+  }
+
+  function setFocus(idx) {
+    const items = dropdown.querySelectorAll('.suggestion-item');
+    items.forEach(el => el.classList.remove('focused'));
+    if (idx >= 0 && idx < items.length) {
+      items[idx].classList.add('focused');
+      items[idx].scrollIntoView({ block: 'nearest' });
+    }
+    focusedIdx = idx;
+  }
+
+  function selectResult(r) {
+    input.value = r.name;
+    closeDropdown();
+    doSearch(r.name);
+  }
+
+  function renderSuggestions(results) {
+    dropdown.innerHTML = '';
+    focusedIdx = -1;
+    if (!results.length) { closeDropdown(); return; }
+    results.forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'suggestion-item';
+      div.innerHTML = `
+        <span class="suggestion-dot" style="background:#4a7c59;border-color:rgba(255,255,255,0.35)"></span>
+        <span>${r.name}</span>
+        ${r.meta ? `<span class="suggestion-meta">${r.meta}</span>` : ''}
+      `;
+      div.addEventListener('mousedown', e => { e.preventDefault(); selectResult(r); });
+      dropdown.appendChild(div);
+    });
+    positionDropdown();
+    dropdown.classList.add('open');
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const q = input.value.trim();
+    if (q.length < 2) { closeDropdown(); return; }
+    debounceTimer = setTimeout(async () => {
+      currentResults = await geocodeSuggest(q);
+      renderSuggestions(currentResults);
+    }, 300);
+  });
+
+  input.addEventListener('keydown', e => {
+    const items = dropdown.querySelectorAll('.suggestion-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocus(Math.min(focusedIdx + 1, items.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocus(Math.max(focusedIdx - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (focusedIdx >= 0 && currentResults[focusedIdx]) {
+        e.preventDefault();
+        selectResult(currentResults[focusedIdx]);
+      } else {
+        const q = input.value.trim();
+        if (q) { closeDropdown(); doSearch(q); }
+      }
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+      input.blur();
+    }
+  });
+
+  input.addEventListener('blur', () => setTimeout(closeDropdown, 150));
+  window.addEventListener('resize', () => { if (dropdown.classList.contains('open')) positionDropdown(); });
+
+  btn.addEventListener('click', () => {
+    const q = input.value.trim();
+    if (q) { closeDropdown(); doSearch(q); }
+  });
+
+  // On load: read ?q= from URL and auto-search
+  const params = new URLSearchParams(window.location.search);
+  const qParam = params.get('q');
+  if (qParam) {
+    input.value = qParam;
+    doSearch(qParam);
+  }
+})();
+
+// ── Initial overlay state ──────────────────────────────────────────────────
+const ring = document.querySelector('.loader-ring');
+if (ring) ring.classList.remove('visible');
+// Overlay stays visible; message already set in HTML
+
+// ── Expose onclick functions as window globals (required by module scope) ──
+Object.assign(window, { toggleMenu, toggleLegend, toggleLayer, toggleDifficulty, downloadGPX, toggleLocate });
+
+</script>
+</body>
+</html>
