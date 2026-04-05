@@ -1,0 +1,27 @@
+{
+  "version": 0.6,
+  "elements": [
+    {
+      "type": "way",
+      "id": 300001,
+      "geometry": [
+        { "lat": 46.370, "lon": 13.820 },
+        { "lat": 46.374, "lon": 13.824 }
+      ],
+      "tags": {
+        "highway": "footway",
+        "name": "Forest Path"
+      }
+    },
+    {
+      "type": "node",
+      "id": 300002,
+      "lat": 46.372,
+      "lon": 13.822,
+      "tags": {
+        "amenity": "drinking_water",
+        "name": "Water Point"
+      }
+    }
+  ]
+}
