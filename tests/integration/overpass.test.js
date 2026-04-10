@@ -47,7 +47,7 @@ describe('fetchOverpass', () => {
     await expect(fetchOverpass('query')).rejects.toThrow('Overpass HTTP 429');
   });
 
-  it('throws on server error (HTTP 504)', async () => {
+  it('times out if all mirrors return 504', async () => {
     mockFetch(null, 504);
     await expect(fetchOverpass('query', { deadline: 100 })).rejects.toThrow('Overpass unavailable');
   });
@@ -74,6 +74,7 @@ describe('fetchOverpass retry + mirror rotation', () => {
     }));
     await expect(fetchOverpass('test query', { deadline: 100 }))
       .rejects.toThrow('Overpass unavailable');
+    expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThanOrEqual(3);
   });
 
   it('succeeds on last mirror in round 1', async () => {
