@@ -48,7 +48,37 @@
     border-bottom: 1px solid rgba(255,255,255,0.08);
     z-index: 1000;
     flex-shrink: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
+    max-height: 120px;
   }
+
+  header.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom-color: transparent;
+  }
+
+  #nav-toggle {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001;
+    background: var(--ink);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    color: var(--stone);
+    font-size: 0.6rem;
+    line-height: 1;
+    padding: 3px 10px 4px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    transition: color 0.15s, background 0.15s;
+  }
+  #nav-toggle:hover { color: var(--paper); }
 
   header h1 {
     font-family: 'Playfair Display', serif;
@@ -585,6 +615,8 @@
     <div id="hut-suggestions"></div>
   </div>
 </header>
+
+<button id="nav-toggle" title="Toggle navigation bar">▲</button>
 
 <div id="cap-banner" hidden>Area capped to 50 × 50 km around centre</div>
 
@@ -1371,6 +1403,17 @@ async function doSearch(query) {
 const ring = document.querySelector('.loader-ring');
 if (ring) ring.classList.remove('visible');
 // Overlay stays visible; message already set in HTML
+
+// ── Nav toggle ────────────────────────────────────────────────────────────
+(function() {
+  const header = document.querySelector('header');
+  const btn    = document.getElementById('nav-toggle');
+  btn.addEventListener('click', () => {
+    const collapsed = header.classList.toggle('collapsed');
+    btn.textContent = collapsed ? '▼' : '▲';
+    btn.title = collapsed ? 'Show navigation bar' : 'Hide navigation bar';
+  });
+})();
 
 // ── Expose onclick functions as window globals (required by module scope) ──
 Object.assign(window, { toggleMenu, toggleLegend, toggleLayer, toggleDifficulty, downloadGPX, toggleLocate });
