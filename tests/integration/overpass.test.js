@@ -49,6 +49,54 @@ describe('fetchOverpass', () => {
 
   it('throws on server error (HTTP 504)', async () => {
     mockFetch(null, 504);
-    await expect(fetchOverpass('query')).rejects.toThrow('Overpass HTTP 504');
+    await expect(fetchOverpass('query', { deadline: 100 })).rejects.toThrow('Overpass unavailable');
+  });
+});
+
+describe('fetchOverpass retry + mirror rotation', () => {
+  it('tries the next mirror on 504', async () => {
+    let callCount = 0;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url) => {
+      callCount++;
+      if (url.includes('overpass-api.de')) {
+        return Promise.resolve({ ok: false, status: 504, json: () => Promise.resolve(null) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(sacFixture) });
+    }));
+    const result = await fetchOverpass('test query');
+    expect(result.elements).toHaveLength(sacFixture.elements.length);
+    expect(callCount).toBe(2);
+  });
+
+  it('tries all mirrors before failing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 504, json: () => Promise.resolve(null),
+    }));
+    await expect(fetchOverpass('test query', { deadline: 100 }))
+      .rejects.toThrow('Overpass unavailable');
+  });
+
+  it('succeeds on last mirror in round 1', async () => {
+    const urls = [];
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url) => {
+      urls.push(url);
+      const isLast = urls.length === 3;
+      return Promise.resolve({
+        ok: isLast,
+        status: isLast ? 200 : 504,
+        json: () => Promise.resolve(isLast ? sacFixture : null),
+      });
+    }));
+    const result = await fetchOverpass('test query');
+    expect(result.elements).toHaveLength(sacFixture.elements.length);
+    expect(urls).toHaveLength(3);
+  });
+
+  it('does not retry non-504 errors', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 429, json: () => Promise.resolve(null),
+    }));
+    await expect(fetchOverpass('test query')).rejects.toThrow('Overpass HTTP 429');
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 });
