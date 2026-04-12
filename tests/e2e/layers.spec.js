@@ -42,15 +42,15 @@ test.describe('Layer toggles', () => {
 
 test.describe('Difficulty filter', () => {
   test('clicking a difficulty row adds muted class', async ({ page }) => {
-    // Open legend first
-    await page.locator('#legend-header').click();
+    // Open legend via FAB first
+    await page.locator('#legend-fab').click();
     const t1Row = page.locator('.legend-row[data-key="T1"]');
     await t1Row.click();
     await expect(t1Row).toHaveClass(/muted/);
   });
 
   test('clicking a muted difficulty row removes muted class', async ({ page }) => {
-    await page.locator('#legend-header').click();
+    await page.locator('#legend-fab').click();
     const t1Row = page.locator('.legend-row[data-key="T1"]');
     await t1Row.click(); // mute
     await t1Row.click(); // unmute
@@ -59,13 +59,29 @@ test.describe('Difficulty filter', () => {
 });
 
 test.describe('Legend', () => {
-  test('legend collapses and expands on header click', async ({ page }) => {
+  test('legend is hidden by default', async ({ page }) => {
     const legend = page.locator('#legend');
-    // Initial state is collapsed
-    await expect(legend).toHaveClass(/collapsed/);
-    await page.locator('#legend-header').click();
-    await expect(legend).not.toHaveClass(/collapsed/);
-    await page.locator('#legend-header').click();
-    await expect(legend).toHaveClass(/collapsed/);
+    await expect(legend).not.toHaveClass(/open/);
+  });
+
+  test('legend opens when FAB is clicked', async ({ page }) => {
+    const legend = page.locator('#legend');
+    await page.locator('#legend-fab').click();
+    await expect(legend).toHaveClass(/open/);
+  });
+
+  test('legend closes when FAB is clicked again', async ({ page }) => {
+    const legend = page.locator('#legend');
+    await page.locator('#legend-fab').click();
+    await page.locator('#legend-fab').click();
+    await expect(legend).not.toHaveClass(/open/);
+  });
+
+  test('legend closes when map is clicked', async ({ page }) => {
+    const legend = page.locator('#legend');
+    await page.locator('#legend-fab').click();
+    await expect(legend).toHaveClass(/open/);
+    await page.locator('#map').click({ position: { x: 300, y: 300 } });
+    await expect(legend).not.toHaveClass(/open/);
   });
 });
